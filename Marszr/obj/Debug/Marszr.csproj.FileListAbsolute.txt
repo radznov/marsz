@@ -7,3 +7,6 @@ D:\Nauka\6 SEM\Wojcik\Marszr\Marszr\obj\Debug\Marszr.pdb
 C:\Users\Radznov\Desktop\Marszr\Marszr\bin\Debug\Marszr.exe.config
 C:\Users\Radznov\Desktop\Marszr\Marszr\obj\Debug\Marszr.exe
 C:\Users\Radznov\Desktop\Marszr\Marszr\obj\Debug\Marszr.pdb
+C:\Users\Radznov\Desktop\Marszr\Marszr\bin\Debug\Marszr.exe
+C:\Users\Radznov\Desktop\Marszr\Marszr\bin\Debug\Marszr.pdb
+C:\Users\Radznov\Desktop\Marszr\Marszr\obj\Debug\Marszr.csprojResolveAssemblyReference.cache
