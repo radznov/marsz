@@ -1,0 +1,9 @@
+D:\Nauka\6 SEM\Wojcik\Marszr\Marszr\bin\Debug\Marszr.exe.config
+D:\Nauka\6 SEM\Wojcik\Marszr\Marszr\obj\Debug\Marszr.csprojResolveAssemblyReference.cache
+D:\Nauka\6 SEM\Wojcik\Marszr\Marszr\bin\Debug\Marszr.exe
+D:\Nauka\6 SEM\Wojcik\Marszr\Marszr\bin\Debug\Marszr.pdb
+D:\Nauka\6 SEM\Wojcik\Marszr\Marszr\obj\Debug\Marszr.exe
+D:\Nauka\6 SEM\Wojcik\Marszr\Marszr\obj\Debug\Marszr.pdb
+C:\Users\Radznov\Desktop\Marszr\Marszr\bin\Debug\Marszr.exe.config
+C:\Users\Radznov\Desktop\Marszr\Marszr\obj\Debug\Marszr.exe
+C:\Users\Radznov\Desktop\Marszr\Marszr\obj\Debug\Marszr.pdb
