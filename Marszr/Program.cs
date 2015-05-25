@@ -179,23 +179,397 @@ namespace Marszr
 
             return lista;
         }
+        private Double gorna;
+        private int[] cykl;
+        public bool branch(int l_miast)
+        {
+
+            // funkcja ustalajaca poczatkowa gorna granice - algorytm zachlanny - rozwiazanie optymalne na pewno nie gorsze niz wyznaczone
+            cykl = new int[10];
+            bool[] miasto = new bool[l_miast]; //miasto odwiedzone - true
+            int aktualne = 0, kolejne = 0; //indeksy miast
+            double poczatkowe_gorna = 0; // suma wag
+
+            for (int i = 0; i < l_miast; i++) // poczatkowe czyszczenie
+            {
+                miasto[i] = false;
+            }
+
+            double min;
+            for (int i = 0; i < l_miast - 1; i++) // rozpatruje wszystkie miasta
+            {
+                min = Double.MaxValue; //wartosc najkrotszego polaczenia
+                for (int j = 1; j < l_miast; j++) //wyszukanie najkrotszej sciezki (od 1, bo na razie do zerowego nie wracam, nie tworze cyklu)
+                {
+                    if ((!(miasto[j])) && j != aktualne) //miasto jeszcze nieodwiedzone(zeby sie nie cofac) i rozne od obecnego
+                    {
+                        if (odleglosc[aktualne, j] < min) // wyszukanie aktualnie najkorzystniejszej drogi
+                        {
+                            min = odleglosc[aktualne, j];
+                            kolejne = j; //na razie ta droga wydaje sie najlepsza
+                        }
+                    }
+                }
+                poczatkowe_gorna += odleglosc[aktualne, kolejne]; // zsumowanie kosztu
+                aktualne = kolejne; //przejscie
+                miasto[aktualne] = true;  //juz odwiedzono   
+            }
+
+            poczatkowe_gorna += odleglosc[aktualne, 0]; //zamykam cykl
+
+            this.gorna = poczatkowe_gorna; //ustawienie poczatkowej gornej granicy!
+
+            //..........................................................................................................
+            int[] droga = new int[l_miast]; //droga taka bazowa do funkcji
+            for (int i = 0; i < l_miast; i++)
+            {
+                droga[i] = -1; // hehe
+            }
+
+            double[,] tablica = new double[l_miast + 1, l_miast + 1]; //juz nie tab, a tablica(az o 1 wieksza w kazdym wymiarze) - ma dodatkowe pola na zapamietywane numery indeksow
+
+
+            for (int i = 1; i < l_miast + 1; i++) // ogolnie wpisanie wartosci w nowa tablice
+            {
+                tablica[0, i] = i; //indeksowanie
+                tablica[i, 0] = i;
+
+                for (int j = 1; j < l_miast + 1; j++)
+                {
+                    tablica[i, j] = odleglosc[i - 1, j - 1]; //przepisywanie wartosci
+                }
+            }
+
+            bool udalo_sie;
+            udalo_sie = little(tablica, droga, l_miast, 0, l_miast);
+
+
+            int dalej = 0;
+            Console.WriteLine("\n\n-----------------------------------------------------------------------------");
+            Console.WriteLine("Kolejnosc odwiedzenia miast: Start(0) -> ");
+
+            for (int i = 0; i < l_miast - 1; i++)
+            {
+
+                Console.Write(cykl[dalej] + " -> ");
+
+                dalej = cykl[dalej];
+            }
+            Console.WriteLine("Koniec(0)");
+            Console.WriteLine("Koszt drogi: " + this.gorna);
+            Console.WriteLine("Koniec(0)");
+            Console.WriteLine("\n\n-----------------------------------------------------------------------------");
+
+            return true;
+        }
+
+        public bool little(double[,] tab, int[] droga, int n, double dolna, int l_miast) //n to liczba rozpatrywanych miast
+        {
+            if (n == 2) //warunek zakonczenia rekurencji
+            {
+                droga[(int)(tab[1, 0]) - 1] = (int)tab[0, 2] - 1; //pierwsza mozliwosc zamkniecia
+                droga[(int)tab[2, 0] - 1] = (int)tab[0, 1] - 1;
+
+                int tmp1 = droga[0], tmp2;
+
+                for (int i = 0; i < l_miast - 1; i++)
+                {
+                    if (tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - znaczy nie bardzo jest to interesujacy nas cykl po wszystkich miastach
+                    {
+                        tmp1 = -1;
+                        break;
+                    }
+
+                    tmp2 = droga[tmp1];
+                    tmp1 = tmp2;
+
+                }
+
+                if (tmp1 == 0) //jezeli jest cykl
+                {
+                    if (tab[1, 2] != 999999 && tab[2, 1] != 999999) //gdyby jednak cos takiego sie przytrafilo
+                    {
+                        if ((dolna + tab[1, 2] + tab[2, 1]) < gorna)
+                        {
+                            gorna = dolna + tab[1, 2] + tab[2, 1];
+                            for (int i = 0; i < l_miast; i++) //kopia najlepszej trasy do tej pory do obiektu
+                            {
+                                cykl[i] = droga[i];
+                            }
+                        }
+                    }
+
+
+                }
+
+                droga[(int)(tab[1, 0]) - 1] = (int)(tab[0, 1]) - 1; //i druga mozliwosc zamkniecia
+                droga[(int)(tab[2, 0]) - 1] = (int)(tab[0, 2]) - 1;
+                tmp1 = droga[0];
+                for (int i = 0; i < l_miast - 1; i++)
+                {
+                    if (tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - znaczy nie bardzo jest to interesujacy nas cykl po wszystkich miastach
+                    {
+                        tmp1 = -1;
+                        break;
+                    }
+
+                    tmp2 = droga[tmp1];
+                    tmp1 = tmp2;
+
+                }
+
+                if (tmp1 == 0) //jezeli jest cykl
+                {
+                    if (tab[1, 2] != 999999 && tab[2, 1] != 999999) //gdyby jednak cos takiego sie przytrafilo
+                    {
+                        if ((dolna + tab[1, 1] + tab[2, 2]) < gorna)
+                        {
+                            gorna = dolna + tab[1, 1] + tab[2, 2];
+                            for (int i = 0; i < l_miast; i++) //kopia najlepszej trasy do tej pory do obiektu
+                            {
+                                this.cykl[i] = droga[i];
+                            }
+                        }
+                    }
+                }
+
+                return true;
+            }
+            else // dla macierzy wiekszej niz 2 standardowy podzial
+            {
+                
+                // redukcja macierzy kosztow
+                double[] minimalne_w = new double[n];
+                double[] minimalne_k = new double[n]; //tablice trzymajace znalezione minimalne wartosci wiersz_podzial odpowiednich wierszach i kolumnach
+                double min;
+                for (int i = 1; i <= n; i++) // i teraz znalezienie minimum dla kazdego wiersza - wiersz_podzial tym punkcie pamietam, ze moja macierz/tablice z odleglosciami poeiwkszylem o 1 wiersz_podzial kazdym wymiarze (wiersz_podzial celu pamietania indeksow danego wiersza, kolumny)! wiec wiersz_podzial wiekszosci petle beda zaczynac sie od 1 i konczyc na <=
+                {
+                    min = 999999; //dla kazdego wiersza od nowa szukanie minimum
+
+                    for (int j = 1; j <= n; j++) // kolejne wartosci wiersz_podzial wierszu
+                    {
+                        if (tab[i, j] < min) // jezeli znaleziono najmniejsza do tej pory
+                        {
+                            min = tab[i, j];
+
+                            if (min == 0) // mniejszej nie znajdziemy
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    if (min < 999999)
+                    {
+                        minimalne_w[i - 1] = min; // przechowanie najmniejszej dla danego wiersza (uwaga, wiersze numerowane od 0!)
+                    }
+                    else
+                    {
+                        minimalne_w[i - 1] = 0;
+                    }
+                }
+
+                for (int i = 1; i <= n; i++) //odjecie znalezionych minimum od kazdej wartosci wiersz_podzial zadanym wierszu
+                {
+                    if (minimalne_w[i - 1] > 0) // jezeli wiersz_podzial ogole odejmowanie ma sens - bedzie co odejmowac, wieksze od zera
+                    {
+                        for (int j = 1; j <= n; j++)
+                        {
+                            if (tab[i, j] != 999999)
+                                tab[i, j] -= minimalne_w[i - 1];
+                        }
+                    }
+                }
+
+
+                for (int i = 1; i <= n; i++) //analogiczne dzialania dla kazdej kolumny
+                {
+                    min = 999999;
+
+                    for (int j = 1; j <= n; j++)
+                    {
+                        if (tab[j, i] < min)
+                        {
+                            min = tab[j, i];
+
+                            if (min == 0) // mniejszej nie znajdziemy
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (min < 999999)
+                    {
+                        minimalne_k[i - 1] = min; // przechowanie najmniejszej dla danego wiersza (uwaga, wiersze numerowane od 0!)
+                    }
+                    else
+                    {
+                        minimalne_k[i - 1] = 0;
+                    }
+                }
+
+                for (int i = 1; i <= n; i++) //odejmowanie wiersz_podzial kolumnach
+                {
+                    if (minimalne_k[i - 1] > 0) // jezeli wiersz_podzial ogole odejmowanie ma sens
+                    {
+                        for (int j = 1; j <= n; j++)
+                        {
+                            if (tab[j, i] != 999999)
+                                tab[j, i] -= minimalne_k[i - 1];
+                        }
+                    }
+                }
+
+                double dolna_przyrost = 0; //o ile zwiekszylo sie aktualnie dolne ograniczenie
+                for (int i = 0; i < n; i++)
+                {
+                    dolna_przyrost += (minimalne_w[i] + minimalne_k[i]); // zsumowanie wszystkich wartosci
+                }
+
+                double nowa_dolna = dolna + dolna_przyrost; // nowa dolna granica dla zadanej macierzy
+
+                //  Wybor luku wg ktorego nastapi podzial drzewa (taki, ktory spowoduje najwieksy wzrost dolnego ograniczenia dla rozwiazan, ktore tego luku na pewno nie posiadaja)
+
+                int wiersz_podzial = 0, kolumna_podzial = 0;
+                double minimum_w_kolumnie, minimum_w_wierszu, max_tmp, max = -1.0, minimum_w_wierszuxD = 0, minimum_w_kolumniexD = 0;
+                for (int i = 1; i <= n; i++) //przeszukujemy cala macierz
+                {
+                    for (int j = 1; j <= n; j++)
+                    {
+
+                        if (tab[i, j] == 0) // az natrafimy na krawedz/sciezke z wartoscia zero
+                        {
+                            minimum_w_wierszu = 999999;
+                            for (int l = 1; l <= n; l++) //szukamy najmniejszej wartosci w wierszu
+                            {
+                                if ((l != j) && (tab[i, l] < minimum_w_wierszu))
+                                {
+                                    minimum_w_wierszu = tab[i, l];
+                                }
+                            }
+
+                            minimum_w_kolumnie = 999999;
+                            for (int m = 1; m <= n; m++)
+                            {
+                                if ((m != i) && (tab[m, j] < minimum_w_kolumnie)) //szukamy najmniejszej wartosci w wierszu
+                                {
+                                    minimum_w_kolumnie = tab[m, j];
+                                }
+
+                            }
+
+                            max_tmp = minimum_w_wierszu + minimum_w_kolumnie; //zeby nie dodawac dwa razy
+
+                            if (max < max_tmp) //jezli znalezlismy najwieksza sume minimow
+                            {
+                                max = max_tmp; //zapamietanie wartosci
+                                wiersz_podzial = i; //zapamietanie pozycji wystapienia krawedzi
+                                kolumna_podzial = j;
+                                minimum_w_wierszuxD = minimum_w_wierszu; // zeby nie liczyc ponownie znalezionego juz minimum
+                                minimum_w_kolumniexD = minimum_w_kolumnie;
+                            }
+                        }
+                    }
+                }
+
+                //  Podzial zbioru wg wybranej krawedzi
+                //  Poddrzewo z wybrana krawedzia
+                double[,] tab_z_krawedzia = new double[n, n]; //utworzenie nowej macierzy - wszystkie rozwiazania z wybrana krawedzia - dlaczego n, a nie n -1? bo nasza tablica ma jeszcze numery indeksow (w zasadzie oryginalna ma rozmiar n+1)
+
+                int i_mniejsze = 0, j_mniejsze;
+                for (int i = 0; i <= n; i++) //tym razem indeks od zera, gdyz chce przepisac rowniez zawartosc... indeksow
+                {
+                    if (i == wiersz_podzial)
+                    {
+                        i_mniejsze--; //jesli natrafiamy na wiersz, ktory chcemy pominac, indeks zatrzymuje sie w miejscu (poniewaz potem zostanie zwiekszony o 1)
+                    }
+                    else //a tu przepisujemy wiersz
+                    {
+                        j_mniejsze = 0;
+                        for (int j = 0; j <= n; j++)
+                        {
+                            if (j == kolumna_podzial) // bez zadanej kolumny
+                            {
+                                j_mniejsze--;
+                            }
+                            else
+                            {
+                                tab_z_krawedzia[i_mniejsze, j_mniejsze] = tab[i, j];
+                            }
+                            j_mniejsze++;
+                        }
+                    }
+                    i_mniejsze++;
+                }
+
+                bool b1 = false, b2 = false; //zapobiezenie pojawieniu sie cykli, czyli sprawdzam, czy czasem go nie ma :D
+                int kol = 0, wie = 0;
+                for (int i = 1; i < n; i++)
+                {
+                    if (tab_z_krawedzia[i, 0] == tab[0, kolumna_podzial])
+                    {
+                        b2 = true;
+                        wie = i;
+                    }
+                    if (tab_z_krawedzia[0, i] == tab[wiersz_podzial, 0])
+                    {
+                        b1 = true;
+                        kol = i;
+                    }
+                    if (b2 && b1)
+                    {
+                        tab_z_krawedzia[wie, kol] = 999999; //jeżeli istnieje to blokujemy przejście
+                        break;
+                    }
+                }
+
+                if (nowa_dolna < gorna) //jezeli dolne oszacowanie mniejsze niz znane gorne - mamy szanse na jakies lepsze rozwiazanie.. | a jak nie jest, to dalej nawet nie ma co sie zaglebiac
+                {
+                    int[] nowa_droga = new int[l_miast]; //kopia dotychczasowej drogi
+                    for (int i = 0; i < l_miast; i++)
+                    {
+                        nowa_droga[i] = droga[i]; // tak - kopia
+                    }
+                    nowa_droga[(int)(tab[wiersz_podzial, 0]) - 1] = (int)(tab[0, kolumna_podzial]) - 1; //dodajemy nową krawędź
+
+                    little(tab_z_krawedzia, nowa_droga, n - 1, nowa_dolna, l_miast); //wchodzimy glebiej w dany przypadek
+
+                }
+
+
+
+                //podrzewo bez danej krawedzi
+
+                tab[wiersz_podzial, kolumna_podzial] = 999999; //nieskończoność wiersz_podzial miejsce wcześniej wybranego zera (czyli teraz bez tej krawędzi)
+
+                for (int i = 1; i <= n; i++) // ponowne ograniczenie
+                {
+                    if (tab[wiersz_podzial, i] < 999999)
+                    {
+                        tab[wiersz_podzial, i] -= minimum_w_wierszuxD;
+                    }
+                    if (tab[i, kolumna_podzial] < 999999)
+                    {
+                        tab[i, kolumna_podzial] -= minimum_w_kolumniexD;
+                    }
+                }
+
+                nowa_dolna += (minimum_w_wierszuxD + minimum_w_kolumniexD); //nowa dolna granica
+
+                if (nowa_dolna < gorna) // jezeli ma sens dalej isc w te wariant to idziemy wglab
+                {
+                    little(tab, droga, n, nowa_dolna, l_miast);
+                }
+                return false;
+            }
+
+        }
 
         static void Main(string[] args)
         {
             Program program = new Program();
-            Marsz marsz = new Marsz("ins.txt");
-            //string nazwa_pliku, wiersz, out_s; 
-            //int ile_razy; // ile razy kazdy z testow bedzie wykonywany
-            //System.Console.In.ReadLine();
-            //System.Console.Clear();
-
-            //System.Console.Out.WriteLine("nazwa pliku: ");
-            //nazwa_pliku = System.Console.In.ReadLine();
-            //System.Console.Clear();
-
-            //System.Console.Out.WriteLine("Do jakiego pliku zapisac wynik? (bez rozszerzenia): ");
-            //out_s = System.Console.In.ReadLine();
-            //System.Console.Clear();
+            
+            
 
             String[] linie = System.IO.File.ReadAllLines("10a.txt");
 
@@ -217,10 +591,36 @@ namespace Marszr
                 Console.Write("\n");
                 
             }
+            List<int> lista2 = new List<int>();
+            lista2 = program.mrowka(przesylki, 10, 10000.0, 1.0, 0.3F, 50);
+            
+            foreach (int liczba in lista2)
+            {
+                Console.Write(liczba + " -> ");
+            }
+            
+            program.branch(10);
 
-            program.mrowka(przesylki, 10, 10000.0, 1.0, 0.3F, 50);
+            Console.WriteLine("\nFUNKCJE: \n\nMrowka:");
+           // Marsz marsz = new Marsz("ins.txt");
+            Marsz marsz = new Marsz("10b.txt");
+            int[] przesylki2 = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 , 10, 11, 12, 13, 14, 15 };//, 16, 17, 18, 19,20,21,22,23,24,25,26,27,28,29 };
+            List<int> lista = new List<int>();
+            lista = marsz.mrowka(przesylki2, 10, 10000.0, 1.0, 0.3F, 50);
+            foreach(int liczba in lista)
+            {
+                Console.Write(liczba + " -> ");
+            }
+            Console.Write("\nOdleglosc: "+ marsz.obliczOdleglosc(lista) + "\n");
 
-		
+
+            lista = marsz.branch(przesylki2);
+            Console.Write( "\n\n");
+            foreach (int liczba in lista)
+            {
+                Console.Write(liczba + " -> ");
+            }
+            Console.Write("\nOdleglosc: " + marsz.obliczOdleglosc(lista) + "\n");
 	        System.Console.In.Read();
         }
     }
