@@ -243,7 +243,6 @@ namespace Marszr
             bool udalo_sie;
             udalo_sie = little(tablica, droga, l_miast, 0, l_miast);
 
-
             int dalej = 0;
             Console.WriteLine("\n\n-----------------------------------------------------------------------------");
             Console.WriteLine("Kolejnosc odwiedzenia miast: Start(0) -> ");
@@ -259,7 +258,7 @@ namespace Marszr
             Console.WriteLine("Koszt drogi: " + this.gorna);
             Console.WriteLine("Koniec(0)");
             Console.WriteLine("\n\n-----------------------------------------------------------------------------");
-
+            
             return true;
         }
 
@@ -569,16 +568,14 @@ namespace Marszr
         {
             Program program = new Program();
             
-            
-
             String[] linie = System.IO.File.ReadAllLines("10a.txt");
 
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
             int liczbaKlientow = Int32.Parse(linie[0]);
-            program.odleglosc = new double[10,10];
+            program.odleglosc = new double[10, 10];
             //this.przesylka = new List<Punkt>();
-            int[] przesylki = {0,1,2,3,4,5,6,7,8,9 };
+            int[] przesylki = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
             for (int i = 1; i < linie.Length; ++i)
             {
                 var tab = linie[i].Split(new String[] { " " }, StringSplitOptions.RemoveEmptyEntries);
@@ -589,38 +586,43 @@ namespace Marszr
                     Console.Write(program.odleglosc[i - 1, j] + " ");
                 }
                 Console.Write("\n");
-                
+
             }
             List<int> lista2 = new List<int>();
             lista2 = program.mrowka(przesylki, 10, 10000.0, 1.0, 0.3F, 50);
-            
+
             foreach (int liczba in lista2)
             {
                 Console.Write(liczba + " -> ");
             }
-            
+
             program.branch(10);
 
             Console.WriteLine("\nFUNKCJE: \n\nMrowka:");
-           // Marsz marsz = new Marsz("ins.txt");
-            Marsz marsz = new Marsz("10b.txt");
-            int[] przesylki2 = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 , 10, 11, 12, 13, 14, 15 };//, 16, 17, 18, 19,20,21,22,23,24,25,26,27,28,29 };
+             Marsz marsz = new Marsz("ins3.txt");
+            //Marsz marsz = new Marsz("10b.txt");
+             int[] przesylki2 = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30 };//, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 };//,41,42,43,44,45,46,47,48,49 };
             List<int> lista = new List<int>();
             lista = marsz.mrowka(przesylki2, 10, 10000.0, 1.0, 0.3F, 50);
-            foreach(int liczba in lista)
-            {
-                Console.Write(liczba + " -> ");
-            }
-            Console.Write("\nOdleglosc: "+ marsz.obliczOdleglosc(lista) + "\n");
-
-
-            lista = marsz.branch(przesylki2);
-            Console.Write( "\n\n");
             foreach (int liczba in lista)
             {
                 Console.Write(liczba + " -> ");
             }
             Console.Write("\nOdleglosc: " + marsz.obliczOdleglosc(lista) + "\n");
+
+
+            lista = marsz.branch(przesylki2);
+            Console.Write("\n\n");
+            foreach (int liczba in lista)
+            {
+                Console.Write(liczba + " -> ");
+            }
+            Console.Write("\nOdleglosc: " + marsz.obliczOdleglosc(lista) + "\n");
+
+          //  Marsz marsz = new Marsz("ins.txt");
+
+
+
 	        System.Console.In.Read();
         }
     }
