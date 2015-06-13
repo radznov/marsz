@@ -40,6 +40,12 @@ namespace Marszr
 
         private Double gorna;
         private int[] cykl;
+        private static double rozwiazanieP;
+        private static double[,] feromonP; 
+        private static int[] najlepsza_trasaP;
+        private System.Object rozwiazanieO;
+        private System.Object feromonO;
+        private System.Object najlepsza_trasaO;
  //.........................................................................................................................
 
         public Marsz(String nazwaPliku) //konstruktor tworzy nam instancje - wczytuje parametry, na których możemy pracować
@@ -102,35 +108,76 @@ namespace Marszr
             }
         }
 
-       // public  List<int[]> plecak(); //zwraca liste tablic przesylek(kazda tablica zawiera dodatkowo magazyn)
-
-        public List<List<int>> sre(int algorytm, int tryb)
+        public List<List<int>> sreMrowka(int tryb)
         {
             List<List<int>> trasy = new List<List<int>>(); //wyliczone trasy
             List<int> przesylki = new List<int>(); //pojedyncza trasa
+            Double waga = 0, odleglosc = 0;
 
-            Double pojemnosc = 0, waga = 0, odleglosc = 0;
-            int index = 0;
-            przesylki.Add(0);
-            for (int i = 0; i < this.przesylka.Count; i++)
+            if (tryb == 0)  // wybor kolejnych sciezek do pierwszego przekroczenia warunku
             {
-                waga = this.przesylka[i].getQ();
-                if (pojemnosc + waga < pojemnoscPojazdu)
+                Console.WriteLine("maks odleglsoc " + this.zasiegPojazdu);
+                Console.WriteLine("maks waga: " + this.pojemnoscPojazdu);
+                przesylki.Add(0);
+                int index = 0;
+                for (int i = 0; i < this.przesylka.Count; i++)
                 {
                     przesylki.Add(i + 1);
-                    odleglosc = obliczOdleglosc(branch(przesylki.ToArray()));
-
-                    if(odleglosc > this.zasiegPojazdu)
+                    //odleglosc = obliczOdleglosc(branch(przesylki.ToArray()));
+                    //odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 4));
+                    odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 1, 10000.0, 1.0, 0.3F, 4));
+                    waga += this.przesylka[i].getQ();
+                    if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
                     {
-                        przesylki.RemoveAt(i+1);
+                        przesylki.RemoveAt(index + 1);
+                        trasy.Add(przesylki);
+                        przesylki = new List<int>();
+                        przesylki.Add(0);
+                        index = 0;
+                        i--;
+                        
+                        waga = 0;
+
                     }
                     else
                     {
+                        index++;
                     }
+                }
+                trasy.Add(przesylki);
+            }
+            else if (tryb == 1) // wybor kolejnych sciezek do momentu przekroczenia warunku
+            {
+                {
+                    //int i = wybor = Random.
+                    przesylki.Add(0);
+                    int index = 0;
+                    for (int i = 0; i < this.przesylka.Count; i++)
+                    {
+                        przesylki.Add(i + 1);
+                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 10, 10000.0, 1.0, 0.3F, 1));
+                        waga += this.przesylka[i].getQ();
+                        if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
+                        {
+                            przesylki.RemoveAt(index + 1);
+                            trasy.Add(przesylki);
+                            przesylki = new List<int>();
+                            przesylki.Add(0);
+                            index = 0;
+                            i--;
+                            waga = 0;
+
+                        }
+                        else
+                        {
+                            index++;
+                        }
+                    }
+                    trasy.Add(przesylki);
                 }
             }
 
-            return null;
+            return trasy;
         }
 
         public List<int> mrowka(int [] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, float wsp_parowania, int ilosc_mrowek) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
@@ -291,7 +338,7 @@ namespace Marszr
                 }
             }
             //###########################################################################################################################################
-
+            Console.WriteLine("raz");
             List<int> lista = new List<int>();
             foreach (int element in najlepsza_trasa)
             {
@@ -299,6 +346,215 @@ namespace Marszr
             }
             lista.Reverse(); // zeby zaczac od zera
             return lista;
+        }
+
+        public List<int> mrowkaP(int[] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, float wsp_parowania, int ilosc_mrowek) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
+        {
+            int ilosc_przesylek = przesylka.Length;
+
+            double[,] odleglosc = new double[ilosc_przesylek, ilosc_przesylek]; // stworzenie lokalnej macierzy odleglosci
+            int ind1 = 0, ind2;
+            foreach (int przesylka1 in przesylka)
+            {
+                ind2 = 0;
+                foreach (int przesylka2 in przesylka)
+                {
+                    odleglosc[ind1, ind2] = this.odleglosc[przesylka1, przesylka2];
+                    ind2++;
+                }
+                ind1++;
+            }
+
+            rozwiazanieP = 99999999;          
+            feromonP = new double[ilosc_przesylek, ilosc_przesylek]; //tablica przechowujaca ilosc feromonu na danej sciezce
+            najlepsza_trasaP = new int[ilosc_przesylek]; //najlepsza trasa
+            double wartosc_odniesienia_feromonu = 0; //wartosc odniesienia, aby wiedziec mniej wiecej ile feromonu dodawac
+            
+
+            for (int i = 0; i < ilosc_przesylek; i++)  //inicjalizacja wszystkich sciezek bazowa iloscia feromonu
+            {
+                for (int j = 0; j < ilosc_przesylek; j++)
+                {
+                    feromonP[i, j] = bazowy_feromon; //a tu wartosc feromonu
+
+                    if (wartosc_odniesienia_feromonu < odleglosc[i, j] && i != j)
+                    {
+                        wartosc_odniesienia_feromonu = odleglosc[i, j];
+                    }
+                }
+            }
+
+            wartosc_odniesienia_feromonu *= ilosc_przesylek; // najgorsza (niemozliwa) odleglosc
+            Thread [] thread = new Thread[ilosc_mrowek];
+            
+            //###########################################################################################################################################
+            rozwiazanieO = new System.Object();
+            feromonO = new System.Object();
+            najlepsza_trasaO = new System.Object();
+            for (int x = 0; x < ilosc_tur; x++) //glowna petla programowa
+            {
+                for (int y = 0; y < ilosc_mrowek; y++)
+                {
+                    //thread[y] = new Thread(() => mrowczak(ilosc_przesylek, odleglosc, wsp_parowania, mnoznik_feromonu, wartosc_odniesienia_feromonu));
+                   // thread[y].Start();
+                    Task task1 = Task.Factory.StartNew(() => mrowczak(ilosc_przesylek, odleglosc, wsp_parowania, mnoznik_feromonu, wartosc_odniesienia_feromonu));
+                    var continuation = Task.Factory.ContinueWhenAll(new[] { task1}, tasks =>{});
+                }
+                
+                //while (true)
+                //{
+                //    lock (mrowczakIntO)
+                //    {
+                //        if (mrowczakInt == ilosc_mrowek)
+                //        {
+                //            break;
+                //        }    
+                //    }
+                //    Thread.Sleep(50);
+                //}
+
+                //for (int y = 0; y < ilosc_mrowek; y++)
+                {
+                   // thread[y].Join();
+                  //  Console.WriteLine("STOP");
+                   
+                }
+            }
+            //###########################################################################################################################################
+           // Console.WriteLine("raz");
+            List<int> lista = new List<int>();
+            foreach (int element in najlepsza_trasaP)
+            {
+                lista.Add(przesylka[element]);
+            }
+            lista.Reverse(); // zeby zaczac od zera
+            return lista;
+        }
+
+        public void mrowczak(int ilosc_przesylek, double[,] odleglosc, float wsp_parowania, double mnoznik_feromonu,  double wartosc_odniesienia_feromonu)
+        {
+            const float alfa = 1.0F, beta = 3.0F; // alfa/beta (okreslaja parametry wyboru kolejnego miasta na trasie, "podobno" alfa najlepiej  = 1, beta <2,5>
+            const int wartosc_pewna = 10000; // ogolnie 1 stanowi wartosc pewna, ze wzgledu na losowanie wartosci calkowitych - u nas ta jedynka bedzie 10 000 (mozliwa zmiana)
+            double[,] feromon_delta = new double[ilosc_przesylek, ilosc_przesylek]; //tablica z iloscia nowego feromonu, ktora dodajemy po powrocie wszystkich mrowek
+            int[] dostepne_miasta = new int[ilosc_przesylek]; // tablica w ktorej bedziemy trzymac miasta dostepne do odwiedzenia dla mrowki
+
+            Random rand = new Random();
+            //==========================================================================================================================================
+                int miasto_startowe = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie miasta startowego
+                int IDmiast = ilosc_przesylek; //TO NIE ID tylko IloscDostepnychmiast! :)
+                int obecne_miasto = miasto_startowe, kolejne_miasto = -1;
+                for (int i = 0; i < ilosc_przesylek; i++) //wstepna inicjalizacja dostepnych miast
+                {
+                    dostepne_miasta[i] = i;
+                }
+                int tmp; // zmienna do ustalenia kolejnosci (w sensie zamieniamy przy jej pomocy wartosci w tablicy - zwykle swap)
+                tmp = dostepne_miasta[miasto_startowe];
+                dostepne_miasta[miasto_startowe] = IDmiast - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (pod wyrzuceniem, rozumiem przeniesienia na koniec tablicy, do indeksow, do ktorych sie nie bedziemy odwolywac)
+                dostepne_miasta[IDmiast - 1] = tmp;
+                IDmiast--; // jedno miasto pooszloooo (krok wyzej)
+
+                double dlugosc_trasy = 0; //dlugosc trasy wyliczona dla tej mrowki
+                //...........................................................................................................................................
+                for (int z = 0; z < ilosc_przesylek - 1; z++) // tutaj patrzymy jaka trase sobie wybrala 
+                {
+                    double suma_we_wzorze = 0; //nazwa mowi za siebie
+                    int wybrana_droga_prd = 0, suma_prawdopodobienstwa = 0; //wybrana wartosc prawdopodobienstwa
+                    double[] prawdopodobienstwo = new double[IDmiast]; //tablica z prawdopodobienstwami wyboru kolejnego miasta
+                    //lock (feromonO)
+                    {
+                        for (int i = 0; i < IDmiast; i++) //obliczenie jednej ze zmiennych potrzebnej do wybrania kolejnego miasta
+                        {
+                            suma_we_wzorze += (Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * (1.0 / Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta)));
+                        }
+                    }
+                    
+                   // lock (feromonO)
+                    {
+                        for (int i = 0; i < IDmiast; i++) //liczenie prawdopodobienstwa wyboru dla kazdego z miast (taki ladny wzor)
+                        {
+                            prawdopodobienstwo[i] = ((Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * ((double)1 / (double)Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta))) / (double)(suma_we_wzorze)) * wartosc_pewna;
+                            suma_prawdopodobienstwa += (int)prawdopodobienstwo[i];
+                        }
+                    }
+                    wybrana_droga_prd = rand.Next(0, suma_prawdopodobienstwa - 1); // wybieramy liczbe z naszego przedzialu wartosci	
+
+                    suma_prawdopodobienstwa = 0; //wykorzystamy juz istniejaca zmienna
+                    for (int i = 0; i < IDmiast; i++)
+                    {
+                        suma_prawdopodobienstwa += (int)prawdopodobienstwo[i]; //dodajemy i czekamy, az przekroczymy
+                        if (suma_prawdopodobienstwa >= wybrana_droga_prd) //jezeli doszlismy do poszukiwnego prawdopodobienstwa
+                        {
+                            kolejne_miasto = dostepne_miasta[i];
+                            tmp = dostepne_miasta[i];
+                            dostepne_miasta[i] = dostepne_miasta[IDmiast - 1]; //zmniejszenie ilosc miast
+                            dostepne_miasta[IDmiast - 1] = tmp;
+                            break;
+                        }
+                    }
+
+                    if (kolejne_miasto == -1)
+                    {
+                        System.Console.Out.WriteLine("Nie wybrano kolejnego miasta!!");
+                        System.Console.In.Read();
+                    }
+                    else
+                    {
+                        dlugosc_trasy += odleglosc[obecne_miasto, kolejne_miasto];
+                    }
+                    obecne_miasto = kolejne_miasto;
+
+                    IDmiast--;
+                    kolejne_miasto = -1;
+                }
+
+                dlugosc_trasy += odleglosc[dostepne_miasta[0], miasto_startowe]; // i dodanie dlugosci drogi powrotnej do punktu
+
+                lock(rozwiazanieO)
+                {
+                    if (rozwiazanieP > dlugosc_trasy) //zapamietanie najlepszej trasy do tej pory
+                    {
+                        rozwiazanieP = dlugosc_trasy;
+
+                        lock (najlepsza_trasaO)
+                        {
+                            for (int i = ilosc_przesylek - 1; i >= 0; i--)
+                            {
+                                najlepsza_trasaP[i] = dostepne_miasta[i];
+                            }
+                        }
+                    }
+                }
+                //...........................................................................................................................................
+                float dodatek_feromonu = (int)((1.0 / dlugosc_trasy) * wartosc_odniesienia_feromonu * mnoznik_feromonu); //okreslamy ile feromonu dodajemy
+
+                for (int i = ilosc_przesylek - 1; i > 0; i--) // dodanie feromonu do tablicy
+                {
+                    feromon_delta[dostepne_miasta[i], dostepne_miasta[i - 1]] += dodatek_feromonu;
+                }
+                feromon_delta[dostepne_miasta[0], miasto_startowe] += dodatek_feromonu;
+
+                lock (najlepsza_trasaO)
+                {
+                    for (int i = ilosc_przesylek - 1; i > 0; i--) //wyroznienie dodatkowo najlepszej trasy
+                    {
+                        feromon_delta[najlepsza_trasaP[i], najlepsza_trasaP[i - 1]] += dodatek_feromonu;
+                    }
+                    feromon_delta[najlepsza_trasaP[0], najlepsza_trasaP[ilosc_przesylek - 1]] += dodatek_feromonu;
+                }
+            
+            //==========================================================================================================================================
+            lock(feromonO)
+            {
+                for (int i = 0; i < ilosc_przesylek; i++)  //parowanie feromonu i dodanie nowego od mrowek
+                {
+                    for (int j = 0; j < ilosc_przesylek; j++)
+                    {
+                        feromonP[i, j] *= (1 - wsp_parowania); //szybkosc parowania
+                        feromonP[i, j] += feromon_delta[i, j];
+                    }
+                }
+            }
+            //lock (mrowczakIntO) { mrowczakInt++; }
         }
 
         public List<int> branch(int [] przesylka)

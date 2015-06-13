@@ -599,7 +599,7 @@ namespace Marszr
             program.branch(10);
 
             Console.WriteLine("\nFUNKCJE: \n\nMrowka:");
-             Marsz marsz = new Marsz("ins3.txt");
+             Marsz marsz = new Marsz("ins.txt");
             //Marsz marsz = new Marsz("10b.txt");
              int[] przesylki2 = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30 };//, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 };//,41,42,43,44,45,46,47,48,49 };
             List<int> lista = new List<int>();
@@ -621,8 +621,27 @@ namespace Marszr
 
           //  Marsz marsz = new Marsz("ins.txt");
 
+            
+            List<List<int>> trasy = new List<List<int>>();
+            //List<int> trasa;
+            trasy = marsz.sreMrowka(0);
+            double wagi = 0, odleglosci = 0;
+            for(int i = 0; i < trasy.Count; i++)
+            {
+                Console.WriteLine(i + ".");
+                foreach(int przesylka in trasy[i])
+                {
+                    Console.Write(przesylka + " ->");
+                }
+                Console.WriteLine("\nSuma wag: " + marsz.obliczWage(trasy[i]));
+                wagi += marsz.obliczWage(trasy[i]);
+                Console.WriteLine("Odleglosc: " + marsz.obliczOdleglosc(trasy[i]));
+                odleglosci += marsz.obliczOdleglosc(trasy[i]);
+                Console.WriteLine(" ");
+            }
 
-
+            Console.WriteLine("Suma wag: " + wagi);
+            Console.WriteLine("Suma Odleglosci: " + odleglosci);            
 	        System.Console.In.Read();
         }
     }
