@@ -43,6 +43,7 @@ namespace Marszr
         private static double rozwiazanieP;
         private static double[,] feromonP; 
         private static int[] najlepsza_trasaP;
+        private static int sumas;
         private System.Object rozwiazanieO;
         private System.Object feromonO;
         private System.Object najlepsza_trasaO;
@@ -108,7 +109,7 @@ namespace Marszr
             }
         }
 
-        public List<List<int>> sreMrowka(int tryb)
+        public List<List<int>> sreMrowka(int tryb, int algorytm)
         {
             List<List<int>> trasy = new List<List<int>>(); //wyliczone trasy
             List<int> przesylki = new List<int>(); //pojedyncza trasa
@@ -116,16 +117,28 @@ namespace Marszr
 
             if (tryb == 0)  // wybor kolejnych sciezek do pierwszego przekroczenia warunku
             {
-                Console.WriteLine("maks odleglsoc " + this.zasiegPojazdu);
-                Console.WriteLine("maks waga: " + this.pojemnoscPojazdu);
                 przesylki.Add(0);
                 int index = 0;
                 for (int i = 0; i < this.przesylka.Count; i++)
                 {
                     przesylki.Add(i + 1);
-                    //odleglosc = obliczOdleglosc(branch(przesylki.ToArray()));
-                    //odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 4));
-                    odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 1, 10000.0, 1.0, 0.3F, 4));
+                    if (algorytm == 0)
+                    {
+                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray()));
+                    }
+                    else if (algorytm == 1)
+                    {
+                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10));
+                    }
+                    else if (algorytm == 2)
+                    {
+                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.001F, 10));
+                    }
+                    else if (algorytm == 3)
+                    {
+                        odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), 0.999, 0.01));
+                    }
+                                      
                     waga += this.przesylka[i].getQ();
                     if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
                     {
@@ -134,10 +147,8 @@ namespace Marszr
                         przesylki = new List<int>();
                         przesylki.Add(0);
                         index = 0;
-                        i--;
-                        
+                        i--;                      
                         waga = 0;
-
                     }
                     else
                     {
@@ -237,6 +248,8 @@ namespace Marszr
                 //==========================================================================================================================================
                 for (int y = 0; y < ilosc_mrowek; y++) //dajemy kazdej mrowce przejsc sie po miastach
                 {
+
+
                     int miasto_startowe = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie miasta startowego
                     int IDmiast = ilosc_przesylek; //TO NIE ID tylko IloscDostepnychmiast! :)
                     int obecne_miasto = miasto_startowe, kolejne_miasto = -1;
@@ -338,7 +351,6 @@ namespace Marszr
                 }
             }
             //###########################################################################################################################################
-            Console.WriteLine("raz");
             List<int> lista = new List<int>();
             foreach (int element in najlepsza_trasa)
             {
@@ -385,43 +397,35 @@ namespace Marszr
             }
 
             wartosc_odniesienia_feromonu *= ilosc_przesylek; // najgorsza (niemozliwa) odleglosc
-            Thread [] thread = new Thread[ilosc_mrowek];
-            
+            Task [] task = new Task[ilosc_mrowek];
             //###########################################################################################################################################
             rozwiazanieO = new System.Object();
             feromonO = new System.Object();
             najlepsza_trasaO = new System.Object();
+            List<Task> tasks = new List<Task>();
             for (int x = 0; x < ilosc_tur; x++) //glowna petla programowa
             {
-                for (int y = 0; y < ilosc_mrowek; y++)
-                {
-                    //thread[y] = new Thread(() => mrowczak(ilosc_przesylek, odleglosc, wsp_parowania, mnoznik_feromonu, wartosc_odniesienia_feromonu));
-                   // thread[y].Start();
-                    Task task1 = Task.Factory.StartNew(() => mrowczak(ilosc_przesylek, odleglosc, wsp_parowania, mnoznik_feromonu, wartosc_odniesienia_feromonu));
-                    var continuation = Task.Factory.ContinueWhenAll(new[] { task1}, tasks =>{});
-                }
-                
-                //while (true)
-                //{
-                //    lock (mrowczakIntO)
-                //    {
-                //        if (mrowczakInt == ilosc_mrowek)
-                //        {
-                //            break;
-                //        }    
-                //    }
-                //    Thread.Sleep(50);
-                //}
 
-                //for (int y = 0; y < ilosc_mrowek; y++)
                 {
-                   // thread[y].Join();
-                  //  Console.WriteLine("STOP");
-                   
+                    
+                    for (int y = 0; y < ilosc_mrowek; y++)
+                    {
+                        var local = y;
+                        tasks.Add(Task.Factory.StartNew(() => mrowczak(ilosc_przesylek, odleglosc, wsp_parowania, mnoznik_feromonu, wartosc_odniesienia_feromonu, local)));
+                    }
+
+                    try
+                    {
+                        Task.WaitAll(tasks.ToArray());
+                    }
+                    catch (AggregateException e)
+                    {
+                        Console.WriteLine(e);
+                    }
                 }
             }
             //###########################################################################################################################################
-           // Console.WriteLine("raz");
+
             List<int> lista = new List<int>();
             foreach (int element in najlepsza_trasaP)
             {
@@ -431,13 +435,118 @@ namespace Marszr
             return lista;
         }
 
-        public void mrowczak(int ilosc_przesylek, double[,] odleglosc, float wsp_parowania, double mnoznik_feromonu,  double wartosc_odniesienia_feromonu)
+        public List<int> symulowane(int[] przesylka, double parametr, double minimalna_temperatura)
+        {
+            
+            int ilosc_przesylek = przesylka.Length;
+            Random rand = new Random();
+            double rozwiazanie = Double.MaxValue;
+            double[,] odleglosc = new double[ilosc_przesylek, ilosc_przesylek]; // stworzenie lokalnej macierzy odleglosci
+            int ind1 = 0, ind2;
+            foreach (int przesylka1 in przesylka)
+            {
+                ind2 = 0;
+                foreach (int przesylka2 in przesylka)
+                {
+                    odleglosc[ind1, ind2] = this.odleglosc[przesylka1, przesylka2];
+                    ind2++;
+                }
+                ind1++;
+            }
+
+            int [] permutacja1 = new int[ilosc_przesylek];
+            int [] permutacja2 = new int[ilosc_przesylek];
+            int[] kolejnoscRozwiazanie = new int[ilosc_przesylek];
+	        int id1, id2;
+            double dlugosc1, dlugosc2;
+	        double temperatura, roznica = 1, roznica_tmp;
+
+	
+	        for (int x = 0; x < ilosc_przesylek; x++) //dynamiczne przydzielenie temperatury - przeszukuje pare roznic w dleglosciach, wybieram najwieksza
+	        {
+		        generuj_permutacje(permutacja1, ilosc_przesylek); // generowanie 2 losowych permutacji
+		        generuj_permutacje(permutacja2, ilosc_przesylek);
+		        roznica_tmp = Math.Abs( droga(odleglosc, ilosc_przesylek, permutacja1) - droga( odleglosc, ilosc_przesylek, permutacja2)); // roznica odleglosci miedzy dwoma losowaniami
+
+		        if (roznica_tmp > roznica) 
+		        {
+			        roznica = roznica_tmp;
+		        }
+                
+		        permutacja1 = new int[ilosc_przesylek]; //i nowy przydzial
+		        permutacja2 = new int[ilosc_przesylek];
+	        }
+            
+	        temperatura = roznica;
+           
+	        generuj_permutacje(permutacja1, ilosc_przesylek);
+	        dlugosc1 = droga( odleglosc, ilosc_przesylek, permutacja1);
+
+	        for(int i = 0; i < ilosc_przesylek; i++) //skopiowanie jej do permutacji blizniaczej
+	        {
+		        permutacja2[i] = permutacja1[i];
+	        }
+
+	        while (temperatura > minimalna_temperatura)
+	        {
+                
+		         do
+		        {
+		           id1 = rand.Next(0, ilosc_przesylek ); //losowanie 2 miast do zamiany(szukamy w otoczeniu dotychczasowego rozwiazania)
+                   id2 = rand.Next(0, ilosc_przesylek );
+
+		        }while(id1 == id2); //do momentu az beda rozne - dla duzej liczby miast rozwiazanie takie nie bedzie tragiczne
+
+		        permutacja2[id2] = permutacja1[id1]; // zamiana  - zobaczenie rozwiazania w poblizu naszej obecnej permutacji
+		        permutacja2[id1] = permutacja1[id2];
+		
+
+		        dlugosc2 = droga(odleglosc, ilosc_przesylek, permutacja2);
+
+		        if (dlugosc2 <= dlugosc1 || prwdpd(dlugosc1,dlugosc2, temperatura)) // jezeli znalezlismy lepsze rozwiazanie
+		        {
+			        dlugosc1 = dlugosc2;
+			        if(dlugosc1 <= rozwiazanie)
+			        {
+				        rozwiazanie = dlugosc1;
+                        kolejnoscRozwiazanie = permutacja2;
+			        }
+			
+			        permutacja1[id1] = permutacja2[id1]; //nowa permutacja byla "lepsza" wiec jest nasza glowna permutacja
+			        permutacja1[id2] = permutacja2[id2];
+		        }
+		        else
+		        {
+			        permutacja2[id1] = permutacja1[id1]; // przywrocenie bufora
+			        permutacja2[id2] = permutacja1[id2];
+		        }
+
+                temperatura *= parametr;
+	        }
+
+            List<int> lista = new List<int>();
+            foreach (int element in kolejnoscRozwiazanie)
+            {
+                lista.Add(przesylka[element]);
+            }
+            lista.Reverse(); // zeby zaczac od zera
+            return lista;
+        }
+
+        public void mrowczak(int ilosc_przesylek, double[,] odleglosc, float wsp_parowania, double mnoznik_feromonu,  double wartosc_odniesienia_feromonu, int nr)
         {
             const float alfa = 1.0F, beta = 3.0F; // alfa/beta (okreslaja parametry wyboru kolejnego miasta na trasie, "podobno" alfa najlepiej  = 1, beta <2,5>
             const int wartosc_pewna = 10000; // ogolnie 1 stanowi wartosc pewna, ze wzgledu na losowanie wartosci calkowitych - u nas ta jedynka bedzie 10 000 (mozliwa zmiana)
             double[,] feromon_delta = new double[ilosc_przesylek, ilosc_przesylek]; //tablica z iloscia nowego feromonu, ktora dodajemy po powrocie wszystkich mrowek
             int[] dostepne_miasta = new int[ilosc_przesylek]; // tablica w ktorej bedziemy trzymac miasta dostepne do odwiedzenia dla mrowki
 
+            for (int i = 0; i < ilosc_przesylek; i++)  //reset tablicy z dodatkowym feromonem
+            {
+                for (int j = 0; j < ilosc_przesylek; j++)
+                {
+                    feromon_delta[i, j] = 0;
+                }
+            }
             Random rand = new Random();
             //==========================================================================================================================================
                 int miasto_startowe = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie miasta startowego
@@ -460,20 +569,23 @@ namespace Marszr
                     double suma_we_wzorze = 0; //nazwa mowi za siebie
                     int wybrana_droga_prd = 0, suma_prawdopodobienstwa = 0; //wybrana wartosc prawdopodobienstwa
                     double[] prawdopodobienstwo = new double[IDmiast]; //tablica z prawdopodobienstwami wyboru kolejnego miasta
-                    //lock (feromonO)
+                    lock (feromonO)
                     {
                         for (int i = 0; i < IDmiast; i++) //obliczenie jednej ze zmiennych potrzebnej do wybrania kolejnego miasta
                         {
-                            suma_we_wzorze += (Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * (1.0 / Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta)));
+
+                                suma_we_wzorze += (Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * (1.0 / Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta)));
+
                         }
                     }
                     
-                   // lock (feromonO)
+                   lock (feromonO)
                     {
                         for (int i = 0; i < IDmiast; i++) //liczenie prawdopodobienstwa wyboru dla kazdego z miast (taki ladny wzor)
                         {
-                            prawdopodobienstwo[i] = ((Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * ((double)1 / (double)Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta))) / (double)(suma_we_wzorze)) * wartosc_pewna;
-                            suma_prawdopodobienstwa += (int)prawdopodobienstwo[i];
+
+                                prawdopodobienstwo[i] = ((Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * ((double)1 / (double)Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta))) / (double)(suma_we_wzorze)) * wartosc_pewna;
+                                suma_prawdopodobienstwa += (int)prawdopodobienstwo[i];
                         }
                     }
                     wybrana_droga_prd = rand.Next(0, suma_prawdopodobienstwa - 1); // wybieramy liczbe z naszego przedzialu wartosci	
@@ -554,7 +666,6 @@ namespace Marszr
                     }
                 }
             }
-            //lock (mrowczakIntO) { mrowczakInt++; }
         }
 
         public List<int> branch(int [] przesylka)
@@ -993,6 +1104,48 @@ namespace Marszr
                                  return false;
 			        }
 	        
+        }
+
+        public void generuj_permutacje(int[] permutacja, int ilosc_przesylek) //funkcja pomocnicza dla symulowanego wyzarzania
+        {
+            int[] tmp = new int[ilosc_przesylek]; // tablica numerow miast (id)
+	        int los;
+            Random rand = new Random();
+            
+            for (int i = 0; i < ilosc_przesylek; i++)
+	        {
+		        tmp[i] = i; // przypisanie kolejnych numerow
+	        }
+
+            for (int i = ilosc_przesylek; i > 0; i--)
+	        {
+                
+                los = rand.Next(0, i);
+		        permutacja[i - 1] = tmp[los];
+		        tmp[los] = tmp[i - 1];
+	        }
+        }
+
+        public double droga(double [,] odleglosc, int ilosc_miast, int [] permutacja) //funkcja pomocnicza dla symulowanego wyzarzania
+        {
+            double dlugosc = 0;
+            for (int i = 0; i < ilosc_miast - 1; i++)
+            {
+                dlugosc += odleglosc[permutacja[i],permutacja[i + 1]]; //dodawanie kolejnych odcinkow trasy [od][do]
+            }
+
+            dlugosc += odleglosc[permutacja[ilosc_miast - 1],permutacja[0]]; //dodanie po za petla drogi do punktu startowego
+
+            return dlugosc;
+        }
+
+        public bool prwdpd(double dlugosc1, double dlugosc2, double temperatura)
+        {
+            double prd = Math.Pow(Math.E, ((-1 * (dlugosc2 - dlugosc1)) / temperatura)); // <0,"1"> - w zaleznosci od aktualnej temperatury
+            Random rand = new Random();
+            double r = rand.Next(0, 1000000) / 1000000; // <0,1> 
+
+            return (r < prd); //prawdopodobienstwo zmiany rozwiazania na gorsze w danym momencie
         }
 
    }
