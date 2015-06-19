@@ -111,41 +111,45 @@ namespace Marszr
             }
         }
 
-        public List<List<int>> sreMrowka(int tryb, int algorytm)
+        public List<List<int>> sre(int tryb, int algorytm, Dane dane)
         {
             List<List<int>> trasy = new List<List<int>>(); //wyliczone trasy
             List<int> przesylki = new List<int>(); //pojedyncza trasa
             Double waga = 0, odleglosc = 0;
             Random rand = new Random();
-            if (tryb == 0)  // wybor kolejnych sciezek do pierwszego przekroczenia warunku
+
+            if (tryb == 0)  // wybor kolejnych sciezek zgodnie z kolejnoscia odczytu z danych do pierwszego niespelnienia warunku pojemnosci lub odleglosci
             {
                 przesylki.Add(0);
                 int index = 0;
                 for (int i = 0; i < this.przesylka.Count; i++)
                 {
                     przesylki.Add(i + 1);
-                    if (algorytm == 0)
+
+                    if (algorytm == 0) //wybor algorytmu do obliczen - B&B
                     {
-                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray(),10));
-                        if (odleglosc < 0)
+                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray(), dane.granica));
+
+                        if (odleglosc < 0) //przekroczenie czasu wykonania
                         {
                             return null;
                         }
                     }
-                    else if (algorytm == 1)
+                    else if (algorytm == 1) // alg. mrowkowy
                     {
-                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10));
+                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek, dane.losowo));
                     }
-                    else if (algorytm == 2)
+                    else if (algorytm == 2) //alg mrowkowy rownolegly
                     {
-                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 8));
+                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek));
                     }
-                    else if (algorytm == 3)
+                    else if (algorytm == 3) // alg symulowanego wyz.
                     {
-                        odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), 0.999, 0.01));
+                        odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), dane.wychlodzenie, dane.min));
                     }
                                       
                     waga += this.przesylka[i].getQ();
+
                     if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
                     {
                         przesylki.RemoveAt(index + 1);
@@ -182,7 +186,7 @@ namespace Marszr
                         przesylki.Add(wybor + 1);
                         if (algorytm == 0)
                         {
-                            odleglosc = obliczOdleglosc(branch(przesylki.ToArray(),10));
+                            odleglosc = obliczOdleglosc(branch(przesylki.ToArray(), dane.granica));
                             if (odleglosc < 0)
                             {
                                 return null;
@@ -190,15 +194,15 @@ namespace Marszr
                         }
                         else if (algorytm == 1)
                         {
-                            odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10));
+                            odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek, dane.losowo));
                         }
                         else if (algorytm == 2)
                         {
-                            odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 8));
+                            odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek));
                         }
                         else if (algorytm == 3)
                         {
-                            odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), 0.999, 0.01));
+                            odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), dane.wychlodzenie, dane.min));
                         }
                         waga += this.przesylka[wybor].getQ();
                         if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
@@ -220,7 +224,7 @@ namespace Marszr
                     }
                     trasy.Add(przesylki);
             }
-            else if (tryb == 2) // wybor kolejnych sciezek po uporzadkowaniu
+            else if (tryb == 2) // wybor kolejnych przesylek wzgledem odleglosci od magazynu
             {
 
                 przesylki.Add(0);
@@ -271,7 +275,7 @@ namespace Marszr
                     }
                     else if (algorytm == 1)
                     {
-                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10));
+                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10, false));
                     }
                     else if (algorytm == 2)
                     {
@@ -301,11 +305,14 @@ namespace Marszr
                 }
                 trasy.Add(przesylki);
             }
+            else if (tryb == 3) // wybor kolejnych przesylek najblizszych aktualnie rozwazanej przesylce
+            {
+            }
 
             return trasy;
         }
 
-        public List<int> mrowka(int [] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, float wsp_parowania, int ilosc_mrowek) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
+        public List<int> mrowka(int [] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, float wsp_parowania, int ilosc_mrowek, Boolean losowo) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
         {
             int ilosc_przesylek = przesylka.Length;
 
@@ -348,6 +355,7 @@ namespace Marszr
             wartosc_odniesienia_feromonu *= ilosc_przesylek; // najgorsza (niemozliwa) odleglosc
 
             //###########################################################################################################################################
+
             for (int x = 0; x < ilosc_tur; x++) //glowna petla programowa
             {
                 for (int i = 0; i < ilosc_przesylek; i++)  //reset tablicy z dodatkowym feromonem
@@ -359,29 +367,32 @@ namespace Marszr
                 }
                 
                 Random rand = new Random();
+
                 //==========================================================================================================================================
                 for (int y = 0; y < ilosc_mrowek; y++) //dajemy kazdej mrowce przejsc sie po miastach
                 {
-
-
-                    int przesylka_startowa = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie przesylki startowej
-                    int IDprzesylek = ilosc_przesylek; //TO NIE ID 
+                    int przesylka_startowa = 0;
+                    if(losowo == true)
+                    {
+                        przesylka_startowa = rand.Next(0, ilosc_przesylek - 1);
+                    }
+                    int IDprzesylek = ilosc_przesylek; //ilosc dostepnych przesylek
                     int obecne_miasto = przesylka_startowa, kolejna_przesylka = -1;
                     for (int i = 0; i < ilosc_przesylek; i++) //wstepna inicjalizacja dostepnych miast
                     {
                         dostepne_przesylki[i] = i;
                     }
-                    int tmp; // zmienna do ustalenia kolejnosci (w sensie zamieniamy przy jej pomocy wartosci w tablicy - zwykle swap)
+                    int tmp; // zmienna do ustalenia kolejnosci (zamieniamy przy jej pomocy wartosci w tablicy - zwykle swap)
                     tmp = dostepne_przesylki[przesylka_startowa];
-                    dostepne_przesylki[przesylka_startowa] = IDprzesylek - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (pod wyrzuceniem, rozumiem przeniesienia na koniec tablicy, do indeksow, do ktorych sie nie bedziemy odwolywac)
+                    dostepne_przesylki[przesylka_startowa] = IDprzesylek - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (przeniesienie na koniec tablicy, do indeksow, do ktorych nie bedziemy sie odwolywac)
                     dostepne_przesylki[IDprzesylek - 1] = tmp;
-                    IDprzesylek--; // jedno miasto pooszloooo (krok wyzej)
+                    IDprzesylek--; // jedno przesylkaB dostepne mniej
 
                     double dlugosc_trasy = 0; //dlugosc trasy wyliczona dla tej mrowki
                     //...........................................................................................................................................
                     for (int z = 0; z < ilosc_przesylek - 1; z++) // tutaj patrzymy jaka trase sobie wybrala 
                     {
-                        double suma_we_wzorze = 0; //nazwa mowi za siebie
+                        double suma_we_wzorze = 0;
                         int wybrana_droga_prd = 0, suma_prawdopodobienstwa = 0; //wybrana wartosc prawdopodobienstwa
                         double[] prawdopodobienstwo = new double[IDprzesylek]; //tablica z prawdopodobienstwami wyboru kolejnej przesylki
 
@@ -399,10 +410,11 @@ namespace Marszr
                         wybrana_droga_prd = rand.Next(0, suma_prawdopodobienstwa - 1); // wybieramy liczbe z naszego przedzialu wartosci	
 
                         suma_prawdopodobienstwa = 0; //wykorzystamy juz istniejaca zmienna
+
                         for (int i = 0; i < IDprzesylek; i++)
                         {
                             suma_prawdopodobienstwa += (int)prawdopodobienstwo[i]; //dodajemy i czekamy, az przekroczymy
-                            if (suma_prawdopodobienstwa >= wybrana_droga_prd) //jezeli doszlismy do poszukiwnego prawdopodobienstwa
+                            if (suma_prawdopodobienstwa >= wybrana_droga_prd) //jezeli doszlismy do poszukiwanego prawdopodobienstwa
                             {
                                 kolejna_przesylka = dostepne_przesylki[i];
                                 tmp = dostepne_przesylki[i];
@@ -414,7 +426,7 @@ namespace Marszr
 
                         if (kolejna_przesylka == -1)
                         {
-                            System.Console.Out.WriteLine("Wolaj admina - wiadomo co");
+                            System.Console.Out.WriteLine("Cos jest nie tak...");
                             System.Console.In.Read();
                         }
                         else
@@ -590,7 +602,7 @@ namespace Marszr
 	        double temperatura, roznica = 1, roznica_tmp;
 
 	
-	        for (int x = 0; x < ilosc_przesylek; x++) //dynamiczne przydzielenie temperatury - przeszukuje pare roznic w dleglosciach, wybieram najwieksza
+	        for (int x = 0; x < ilosc_przesylek; x++) //dynamiczne przydzielenie temperatury - przeszukuje pare roznic w odleglosciach, wybieram najwieksza
 	        {
 		        generuj_permutacje(permutacja1, ilosc_przesylek); // generowanie 2 losowych permutacji
 		        generuj_permutacje(permutacja2, ilosc_przesylek);
@@ -658,6 +670,7 @@ namespace Marszr
                 lista.Add(przesylka[element]);
             }
             lista.Reverse(); // zeby zaczac od zera
+
             return lista;
         }
 
@@ -681,7 +694,7 @@ namespace Marszr
                 tmp = dostepne_przesylki[przesylka_startowa];
                 dostepne_przesylki[przesylka_startowa] = IDprzesylek - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (pod wyrzuceniem, rozumiem przeniesienia na koniec tablicy, do indeksow, do ktorych sie nie bedziemy odwolywac)
                 dostepne_przesylki[IDprzesylek - 1] = tmp;
-                IDprzesylek--; // jedno miasto pooszloooo (krok wyzej)
+                IDprzesylek--; // jedno przesylkaB pooszloooo (krok wyzej)
 
                 double dlugosc_trasy = 0; //dlugosc trasy wyliczona dla tej mrowki
                 //...........................................................................................................................................
@@ -794,22 +807,22 @@ namespace Marszr
             }
             // funkcja ustalajaca poczatkowa gorna granice - algorytm zachlanny - rozwiazanie optymalne na pewno nie gorsze niz wyznaczone
 
-            bool[] miasto = new bool[ilosc_przesylek]; //miasto odwiedzone - true
-            int aktualne = 0, kolejne = 0; //indeksy miast
+            bool[] przesylkaB = new bool[ilosc_przesylek]; //przesylkaB dostarczona - true
+            int aktualne = 0, kolejne = 0; //indeksy przesylek
             double poczatkowe_gorna = 0; // suma wag
 
             for (int i = 0; i < ilosc_przesylek; i++) // poczatkowe czyszczenie
             {
-                miasto[i] = false;
+                przesylkaB[i] = false;
             }
 
             double min;
-            for (int i = 0; i < ilosc_przesylek - 1; i++) // rozpatruje wszystkie miasta
+            for (int i = 0; i < ilosc_przesylek - 1; i++) // rozpatruje wszystkie przesylki
             {
                 min = Double.MaxValue; //wartosc najkrotszego polaczenia
                 for (int j = 1; j < ilosc_przesylek; j++) //wyszukanie najkrotszej sciezki (od 1, bo na razie do zerowego nie wracam, nie tworze cyklu)
                 {
-                    if ((!(miasto[j])) && j != aktualne) //miasto jeszcze nieodwiedzone(zeby sie nie cofac) i rozne od obecnego
+                    if ((!(przesylkaB[j])) && j != aktualne) //przesylkaB jeszcze nie dostarczona (zeby sie nie cofac) i rozne od obecnego
                     {
                         if (odleglosc[aktualne, j] < min) // wyszukanie aktualnie najkorzystniejszej drogi
                         {
@@ -820,7 +833,7 @@ namespace Marszr
                 }
                 poczatkowe_gorna += odleglosc[aktualne, kolejne]; // zsumowanie kosztu
                 aktualne = kolejne; //przejscie
-                miasto[aktualne] = true;  //juz odwiedzono   
+                przesylkaB[aktualne] = true;  //juz odwiedzono   
             }
 
             poczatkowe_gorna += 1+odleglosc[aktualne, 0]; //zamykam cykl
@@ -883,11 +896,12 @@ namespace Marszr
             if (trasa != null)
             {
                 double suma = 0;
+                int startowe = trasa[0];
                 for (int i = 0; i < trasa.Count - 1; i++)
                 {
                     suma += this.odleglosc[trasa[i], trasa[i + 1]];
                 }
-                suma += this.odleglosc[trasa[trasa.Count - 1], trasa[0]];
+                suma += this.odleglosc[trasa[trasa.Count - 1], startowe];
 
                 return suma;
             }
@@ -962,7 +976,6 @@ namespace Marszr
 
                     if (tmp1 == 0) //jezeli jest cykl
                     {
-                        // if (tab[1,2] != double.MaxValue && tab[2,1] != double.MaxValue) //gdyby jednak cos takiego sie przytrafilo
                         if ((dolna + tab[1, 2] + tab[2, 1]) < gorna)
                         {
                             gorna = dolna + tab[1, 2] + tab[2, 1];
@@ -978,7 +991,7 @@ namespace Marszr
                     tmp1 = droga[0];
                     for (int i = 0; i < l_przesylek - 1; i++)
                     {
-                        if (tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - znaczy nie bardzo jest to interesujacy nas cykl po wszystkich miastach
+                        if (tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - czyli cykl za krotki
                         {
                             tmp1 = -1;
                             break;
@@ -989,8 +1002,7 @@ namespace Marszr
 
                     }
                     if (tmp1 == 0) //jezeli jest cykl
-                    {
-                        // if (tab[1,2] != double.MaxValue && tab[2,1] != double.MaxValue) //gdyby jednak cos takiego sie przytrafilo                          
+                    {                      
                         if ((dolna + tab[1, 1] + tab[2, 2]) < gorna)
                         {
                             gorna = dolna + tab[1, 1] + tab[2, 2];
@@ -1096,7 +1108,7 @@ namespace Marszr
 
                     double nowa_dolna = dolna + dolna_przyrost; // nowa dolna granica dla zadanej macierzy
 
-                    //  Wybor luku wg ktorego nastapi podzial drzewa (taki, ktory spowoduje najwieksy wzrost dolnego ograniczenia dla rozwiazan, ktore tego luku na pewno nie posiadaja)
+                    //  Wybor luku wg ktorego nastapi podzial drzewa (taki, ktory spowoduje najwiekszy wzrost dolnego ograniczenia dla rozwiazan, ktore tego luku na pewno nie posiadaja)
 
                     int wiersz_podzial = 0, kolumna_podzial = 0;
                     double minimum_w_kolumnie, minimum_w_wierszu, max_tmp, max = -1.0, minimum_w_wierszuxD = 0, minimum_w_kolumniexD = 0;
@@ -1247,7 +1259,7 @@ namespace Marszr
 
         public void generuj_permutacje(int[] permutacja, int ilosc_przesylek) //funkcja pomocnicza dla symulowanego wyzarzania
         {
-            int[] tmp = new int[ilosc_przesylek]; // tablica numerow miast (id)
+            int[] tmp = new int[ilosc_przesylek]; // tablica numerow przesylek (id)
 	        int los;
             Random rand = new Random();
             
@@ -1278,13 +1290,18 @@ namespace Marszr
             return dlugosc;
         }
 
-        public bool prwdpd(double dlugosc1, double dlugosc2, double temperatura)
+        public bool prwdpd(double dlugosc1, double dlugosc2, double temperatura) //funkcja pomocnicza dla symulowanego wyzarzania
         {
             double prd = Math.Pow(Math.E, ((-1 * (dlugosc2 - dlugosc1)) / temperatura)); // <0,"1"> - w zaleznosci od aktualnej temperatury
             Random rand = new Random();
             double r = rand.Next(0, 1000000) / 1000000; // <0,1> 
 
             return (r < prd); //prawdopodobienstwo zmiany rozwiazania na gorsze w danym momencie
+        }
+
+        public double getRozwiazanieOptymalne()
+        {
+            return this.rozwiazanieOptymalne;
         }
 
    }
