@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 //instancje
 //https://code.google.com/p/metavrp/source/browse/trunk/metavrp/instances/vrp/Golden,+Wasil,+Kelly+and+Chao+-+1998?spec=svn18&r=18#Golden%2C%20Wasil%2C%20Kelly%20and%20Chao%20-%201998%2FInstances
@@ -38,12 +39,13 @@ namespace Marszr
         private Double[,] odleglosc; //macierz odleglosci - wygodniejsze (razem z magazynem)
         private Double[] waga; //inaczej wielkosc
 
+        //pomocnicze
         private Double gorna;
         private int[] cykl;
         private static double rozwiazanieP;
-        private static double[,] feromonP; 
+        private static double[,] feromonP;
+        private static double[,] feromonDeltaP;
         private static int[] najlepsza_trasaP;
-        private static int sumas;
         private System.Object rozwiazanieO;
         private System.Object feromonO;
         private System.Object najlepsza_trasaO;
@@ -114,7 +116,7 @@ namespace Marszr
             List<List<int>> trasy = new List<List<int>>(); //wyliczone trasy
             List<int> przesylki = new List<int>(); //pojedyncza trasa
             Double waga = 0, odleglosc = 0;
-
+            Random rand = new Random();
             if (tryb == 0)  // wybor kolejnych sciezek do pierwszego przekroczenia warunku
             {
                 przesylki.Add(0);
@@ -124,7 +126,11 @@ namespace Marszr
                     przesylki.Add(i + 1);
                     if (algorytm == 0)
                     {
-                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray()));
+                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray(),10));
+                        if (odleglosc < 0)
+                        {
+                            return null;
+                        }
                     }
                     else if (algorytm == 1)
                     {
@@ -132,7 +138,7 @@ namespace Marszr
                     }
                     else if (algorytm == 2)
                     {
-                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.001F, 10));
+                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 8));
                     }
                     else if (algorytm == 3)
                     {
@@ -157,17 +163,44 @@ namespace Marszr
                 }
                 trasy.Add(przesylki);
             }
-            else if (tryb == 1) // wybor kolejnych sciezek do momentu przekroczenia warunku
+            else if (tryb == 1) // wybor kolejnych sciezek losowo
             {
-                {
-                    //int i = wybor = Random.
+                   // Console.WriteLine(rand.Next(0,4));
+                    //Console.Read();
                     przesylki.Add(0);
-                    int index = 0;
+                    int index = 0, wybor = 0;
+                    List<int> przesylkiLos = new List<int>(); //pojedyncza trasa
                     for (int i = 0; i < this.przesylka.Count; i++)
                     {
-                        przesylki.Add(i + 1);
-                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 10, 10000.0, 1.0, 0.3F, 1));
-                        waga += this.przesylka[i].getQ();
+                        przesylkiLos.Add(i);
+                    }
+
+                    for (int i = 0; i < this.przesylka.Count; i++)
+                    {
+                        wybor = przesylkiLos[rand.Next(0, this.przesylka.Count - i)];
+
+                        przesylki.Add(wybor + 1);
+                        if (algorytm == 0)
+                        {
+                            odleglosc = obliczOdleglosc(branch(przesylki.ToArray(),10));
+                            if (odleglosc < 0)
+                            {
+                                return null;
+                            }
+                        }
+                        else if (algorytm == 1)
+                        {
+                            odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10));
+                        }
+                        else if (algorytm == 2)
+                        {
+                            odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 8));
+                        }
+                        else if (algorytm == 3)
+                        {
+                            odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), 0.999, 0.01));
+                        }
+                        waga += this.przesylka[wybor].getQ();
                         if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
                         {
                             przesylki.RemoveAt(index + 1);
@@ -181,11 +214,92 @@ namespace Marszr
                         }
                         else
                         {
+                            przesylkiLos.Remove(wybor);
                             index++;
                         }
                     }
                     trasy.Add(przesylki);
+            }
+            else if (tryb == 2) // wybor kolejnych sciezek po uporzadkowaniu
+            {
+
+                przesylki.Add(0);
+                int index = 0, wybor = 0;
+                List<int> przesylkiSort = new List<int>(); //pojedyncza trasa
+                przesylkiSort.Add(0);
+                for (int i = 1; i < this.przesylka.Count; i++)
+                {
+                    for (int j = 0; j < i; j++)
+                    {
+                        
+                        double a = this.odleglosc[0, (przesylkiSort[j])];       
+                        double b = this.odleglosc[0, i];
+                        if (a > b)
+                        {
+                            //Console.WriteLine("Odleglosc " + b + "do " + (i));
+                            przesylkiSort.Insert(j, i);
+                            break;
+                        }
+                    }
+
+                    //for (int j = 0; j < i; j++)
+                    //{                       
+                    //    Console.WriteLine("wartosc: " + przesylkiSort[j] + "  Pozycja = " + j + "  Odleglosc " + this.odleglosc[0, (przesylkiSort[j])]);
+                    //}
+                    //Thread.Sleep(1000);
+                    
                 }
+                //Console.Read();
+                for (int i = 0; i < this.przesylka.Count; i++)
+                {
+                    Console.WriteLine("wartosc: " + przesylkiSort[i] + "  Pozycja = " + i + "  Odleglosc " + this.odleglosc[0, (przesylkiSort[i])]);
+
+                }
+                //POWALONE
+                for (int i = 0; i < this.przesylka.Count; i++)
+                {
+                    wybor = przesylkiSort[i];
+
+                    przesylki.Add(wybor + 1);
+                    if (algorytm == 0)
+                    {
+                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray(), 10));
+                        if (odleglosc < 0)
+                        {
+                            return null;
+                        }
+                    }
+                    else if (algorytm == 1)
+                    {
+                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10));
+                    }
+                    else if (algorytm == 2)
+                    {
+                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 8));
+                    }
+                    else if (algorytm == 3)
+                    {
+                        odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), 0.999, 0.01));
+                    }
+
+                    waga += this.przesylka[wybor].getQ();
+                    if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
+                    {
+                        przesylki.RemoveAt(index + 1);
+                        trasy.Add(przesylki);
+                        przesylki = new List<int>();
+                        przesylki.Add(0);
+                        index = 0;
+                        i--;
+                        waga = 0;
+
+                    }
+                    else
+                    {
+                        index++;
+                    }
+                }
+                trasy.Add(przesylki);
             }
 
             return trasy;
@@ -208,12 +322,12 @@ namespace Marszr
                 ind1++;
             }
             
-            const float alfa = 1.0F, beta = 3.0F; // alfa/beta (okreslaja parametry wyboru kolejnego miasta na trasie, "podobno" alfa najlepiej  = 1, beta <2,5>
+            const float alfa = 1.0F, beta = 3.0F; // alfa/beta (okreslaja parametry wyboru kolejnej przesylki na trasie, "podobno" alfa najlepiej  = 1, beta <2,5>
             const int wartosc_pewna = 10000; // ogolnie 1 stanowi wartosc pewna, ze wzgledu na losowanie wartosci calkowitych - u nas ta jedynka bedzie 10 000 (mozliwa zmiana)
             double rozwiazanie = 99999999;
             double[,] feromon = new double[ilosc_przesylek, ilosc_przesylek]; //tablica przechowujaca ilosc feromonu na danej sciezce
             double[,] feromon_delta = new double[ilosc_przesylek, ilosc_przesylek]; //tablica z iloscia nowego feromonu, ktora dodajemy po powrocie wszystkich mrowek
-            int[] dostepne_miasta = new int[ilosc_przesylek]; // tablica w ktorej bedziemy trzymac miasta dostepne do odwiedzenia dla mrowki
+            int[] dostepne_przesylki = new int[ilosc_przesylek]; // tablica w ktorej bedziemy trzymac przesylki dostepne do odwiedzenia dla mrowki
             int[] najlepsza_trasa = new int[ilosc_przesylek]; //najlepsza trasa
 
             double wartosc_odniesienia_feromonu = 0; //wartosc odniesienia, aby wiedziec mniej wiecej ile feromonu dodawac
@@ -250,18 +364,18 @@ namespace Marszr
                 {
 
 
-                    int miasto_startowe = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie miasta startowego
-                    int IDmiast = ilosc_przesylek; //TO NIE ID tylko IloscDostepnychmiast! :)
-                    int obecne_miasto = miasto_startowe, kolejne_miasto = -1;
+                    int przesylka_startowa = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie przesylki startowej
+                    int IDprzesylek = ilosc_przesylek; //TO NIE ID 
+                    int obecne_miasto = przesylka_startowa, kolejna_przesylka = -1;
                     for (int i = 0; i < ilosc_przesylek; i++) //wstepna inicjalizacja dostepnych miast
                     {
-                        dostepne_miasta[i] = i;
+                        dostepne_przesylki[i] = i;
                     }
                     int tmp; // zmienna do ustalenia kolejnosci (w sensie zamieniamy przy jej pomocy wartosci w tablicy - zwykle swap)
-                    tmp = dostepne_miasta[miasto_startowe];
-                    dostepne_miasta[miasto_startowe] = IDmiast - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (pod wyrzuceniem, rozumiem przeniesienia na koniec tablicy, do indeksow, do ktorych sie nie bedziemy odwolywac)
-                    dostepne_miasta[IDmiast - 1] = tmp;
-                    IDmiast--; // jedno miasto pooszloooo (krok wyzej)
+                    tmp = dostepne_przesylki[przesylka_startowa];
+                    dostepne_przesylki[przesylka_startowa] = IDprzesylek - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (pod wyrzuceniem, rozumiem przeniesienia na koniec tablicy, do indeksow, do ktorych sie nie bedziemy odwolywac)
+                    dostepne_przesylki[IDprzesylek - 1] = tmp;
+                    IDprzesylek--; // jedno miasto pooszloooo (krok wyzej)
 
                     double dlugosc_trasy = 0; //dlugosc trasy wyliczona dla tej mrowki
                     //...........................................................................................................................................
@@ -269,51 +383,51 @@ namespace Marszr
                     {
                         double suma_we_wzorze = 0; //nazwa mowi za siebie
                         int wybrana_droga_prd = 0, suma_prawdopodobienstwa = 0; //wybrana wartosc prawdopodobienstwa
-                        double[] prawdopodobienstwo = new double[IDmiast]; //tablica z prawdopodobienstwami wyboru kolejnego miasta
+                        double[] prawdopodobienstwo = new double[IDprzesylek]; //tablica z prawdopodobienstwami wyboru kolejnej przesylki
 
-                        for (int i = 0; i < IDmiast; i++) //obliczenie jednej ze zmiennych potrzebnej do wybrania kolejnego miasta
+                        for (int i = 0; i < IDprzesylek; i++) //obliczenie jednej ze zmiennych potrzebnej do wybrania kolejnej przesylki
                         {
-                            suma_we_wzorze += (Math.Pow(feromon[obecne_miasto, dostepne_miasta[i]], alfa) * (1.0 / Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta)));
+                            suma_we_wzorze += (Math.Pow(feromon[obecne_miasto, dostepne_przesylki[i]], alfa) * (1.0 / Math.Pow(odleglosc[obecne_miasto, dostepne_przesylki[i]], beta)));
                         }
 
-                        for (int i = 0; i < IDmiast; i++) //liczenie prawdopodobienstwa wyboru dla kazdego z miast (taki ladny wzor)
+                        for (int i = 0; i < IDprzesylek; i++) //liczenie prawdopodobienstwa wyboru dla kazdej z przesylek (taki ladny wzor)
                         {
-                            prawdopodobienstwo[i] = ((Math.Pow(feromon[obecne_miasto, dostepne_miasta[i]], alfa) * ((double)1 / (double)Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta))) / (double)(suma_we_wzorze)) * wartosc_pewna;
+                            prawdopodobienstwo[i] = ((Math.Pow(feromon[obecne_miasto, dostepne_przesylki[i]], alfa) * ((double)1 / (double)Math.Pow(odleglosc[obecne_miasto, dostepne_przesylki[i]], beta))) / (double)(suma_we_wzorze)) * wartosc_pewna;
                             suma_prawdopodobienstwa += (int)prawdopodobienstwo[i];
                         }
 
                         wybrana_droga_prd = rand.Next(0, suma_prawdopodobienstwa - 1); // wybieramy liczbe z naszego przedzialu wartosci	
 
                         suma_prawdopodobienstwa = 0; //wykorzystamy juz istniejaca zmienna
-                        for (int i = 0; i < IDmiast; i++)
+                        for (int i = 0; i < IDprzesylek; i++)
                         {
                             suma_prawdopodobienstwa += (int)prawdopodobienstwo[i]; //dodajemy i czekamy, az przekroczymy
                             if (suma_prawdopodobienstwa >= wybrana_droga_prd) //jezeli doszlismy do poszukiwnego prawdopodobienstwa
                             {
-                                kolejne_miasto = dostepne_miasta[i];
-                                tmp = dostepne_miasta[i];
-                                dostepne_miasta[i] = dostepne_miasta[IDmiast - 1]; //zmniejszenie ilosc miast
-                                dostepne_miasta[IDmiast - 1] = tmp;
+                                kolejna_przesylka = dostepne_przesylki[i];
+                                tmp = dostepne_przesylki[i];
+                                dostepne_przesylki[i] = dostepne_przesylki[IDprzesylek - 1]; //zmniejszenie ilosc miast
+                                dostepne_przesylki[IDprzesylek - 1] = tmp;
                                 break;
                             }
                         }
 
-                        if (kolejne_miasto == -1)
+                        if (kolejna_przesylka == -1)
                         {
-                            System.Console.Out.WriteLine("Nie wybrano kolejnego miasta!!");
+                            System.Console.Out.WriteLine("Wolaj admina - wiadomo co");
                             System.Console.In.Read();
                         }
                         else
                         {
-                            dlugosc_trasy += odleglosc[obecne_miasto, kolejne_miasto];
+                            dlugosc_trasy += odleglosc[obecne_miasto, kolejna_przesylka];
                         }
-                        obecne_miasto = kolejne_miasto;
+                        obecne_miasto = kolejna_przesylka;
 
-                        IDmiast--;
-                        kolejne_miasto = -1;
+                        IDprzesylek--;
+                        kolejna_przesylka = -1;
                     }
 
-                    dlugosc_trasy += odleglosc[dostepne_miasta[0], miasto_startowe]; // i dodanie dlugosci drogi powrotnej do punktu
+                    dlugosc_trasy += odleglosc[dostepne_przesylki[0], przesylka_startowa]; // i dodanie dlugosci drogi powrotnej do punktu
 
                     if (rozwiazanie > dlugosc_trasy) //zapamietanie najlepszej trasy do tej pory
                     {
@@ -321,7 +435,7 @@ namespace Marszr
 
                         for (int i = ilosc_przesylek - 1; i >= 0; i--)
                         {
-                            najlepsza_trasa[i] = dostepne_miasta[i];
+                            najlepsza_trasa[i] = dostepne_przesylki[i];
                         }
                     }
                     //...........................................................................................................................................
@@ -329,9 +443,9 @@ namespace Marszr
 
                     for (int i = ilosc_przesylek - 1; i > 0; i--) // dodanie feromonu do tablicy
                     {
-                        feromon_delta[dostepne_miasta[i], dostepne_miasta[i - 1]] += dodatek_feromonu;
+                        feromon_delta[dostepne_przesylki[i], dostepne_przesylki[i - 1]] += dodatek_feromonu;
                     }
-                    feromon_delta[dostepne_miasta[0], miasto_startowe] += dodatek_feromonu;
+                    feromon_delta[dostepne_przesylki[0], przesylka_startowa] += dodatek_feromonu;
 
                     for (int i = ilosc_przesylek - 1; i > 0; i--) //wyroznienie dodatkowo najlepszej trasy
                     {
@@ -350,6 +464,7 @@ namespace Marszr
                     }
                 }
             }
+
             //###########################################################################################################################################
             List<int> lista = new List<int>();
             foreach (int element in najlepsza_trasa)
@@ -379,6 +494,7 @@ namespace Marszr
 
             rozwiazanieP = 99999999;          
             feromonP = new double[ilosc_przesylek, ilosc_przesylek]; //tablica przechowujaca ilosc feromonu na danej sciezce
+            feromonDeltaP = new double[ilosc_przesylek, ilosc_przesylek]; //tablica przechowujaca ilosc feromonu na danej sciezce
             najlepsza_trasaP = new int[ilosc_przesylek]; //najlepsza trasa
             double wartosc_odniesienia_feromonu = 0; //wartosc odniesienia, aby wiedziec mniej wiecej ile feromonu dodawac
             
@@ -405,9 +521,13 @@ namespace Marszr
             List<Task> tasks = new List<Task>();
             for (int x = 0; x < ilosc_tur; x++) //glowna petla programowa
             {
-
+                for (int i = 0; i < ilosc_przesylek; i++)  //reset tablicy z dodatkowym feromonem
                 {
-                    
+                    for (int j = 0; j < ilosc_przesylek; j++)
+                    {
+                        feromonDeltaP[i, j] = 0;
+                    }
+                }
                     for (int y = 0; y < ilosc_mrowek; y++)
                     {
                         var local = y;
@@ -420,9 +540,17 @@ namespace Marszr
                     }
                     catch (AggregateException e)
                     {
-                        Console.WriteLine(e);
+                        //Console.WriteLine(e);
                     }
-                }
+
+               for (int i = 0; i < ilosc_przesylek; i++)  //parowanie feromonu i dodanie nowego od mrowek
+               {
+                    for (int j = 0; j < ilosc_przesylek; j++)
+                    {
+                          feromonP[i, j] *= (1 - wsp_parowania); //szybkosc parowania
+                          feromonP[i, j] += feromonDeltaP[i, j];
+                    }
+               }
             }
             //###########################################################################################################################################
 
@@ -492,10 +620,10 @@ namespace Marszr
                 
 		         do
 		        {
-		           id1 = rand.Next(0, ilosc_przesylek ); //losowanie 2 miast do zamiany(szukamy w otoczeniu dotychczasowego rozwiazania)
+		           id1 = rand.Next(0, ilosc_przesylek ); //losowanie 2 przesylek do zamiany(szukamy w otoczeniu dotychczasowego rozwiazania)
                    id2 = rand.Next(0, ilosc_przesylek );
 
-		        }while(id1 == id2); //do momentu az beda rozne - dla duzej liczby miast rozwiazanie takie nie bedzie tragiczne
+		        }while(id1 == id2); //do momentu az beda rozne - dla duzej liczby przesylek rozwiazanie takie nie bedzie tragiczne
 
 		        permutacja2[id2] = permutacja1[id1]; // zamiana  - zobaczenie rozwiazania w poblizu naszej obecnej permutacji
 		        permutacja2[id1] = permutacja1[id2];
@@ -535,32 +663,25 @@ namespace Marszr
 
         public void mrowczak(int ilosc_przesylek, double[,] odleglosc, float wsp_parowania, double mnoznik_feromonu,  double wartosc_odniesienia_feromonu, int nr)
         {
-            const float alfa = 1.0F, beta = 3.0F; // alfa/beta (okreslaja parametry wyboru kolejnego miasta na trasie, "podobno" alfa najlepiej  = 1, beta <2,5>
+            const float alfa = 1.0F, beta = 3.0F; // alfa/beta (okreslaja parametry wyboru kolejnej przesylki na trasie, "podobno" alfa najlepiej  = 1, beta <2,5>
             const int wartosc_pewna = 10000; // ogolnie 1 stanowi wartosc pewna, ze wzgledu na losowanie wartosci calkowitych - u nas ta jedynka bedzie 10 000 (mozliwa zmiana)
-            double[,] feromon_delta = new double[ilosc_przesylek, ilosc_przesylek]; //tablica z iloscia nowego feromonu, ktora dodajemy po powrocie wszystkich mrowek
-            int[] dostepne_miasta = new int[ilosc_przesylek]; // tablica w ktorej bedziemy trzymac miasta dostepne do odwiedzenia dla mrowki
-
-            for (int i = 0; i < ilosc_przesylek; i++)  //reset tablicy z dodatkowym feromonem
-            {
-                for (int j = 0; j < ilosc_przesylek; j++)
-                {
-                    feromon_delta[i, j] = 0;
-                }
-            }
+           // double[,] feromon_delta = new double[ilosc_przesylek, ilosc_przesylek]; //tablica z iloscia nowego feromonu, ktora dodajemy po powrocie wszystkich mrowek
+            int[] dostepne_przesylki = new int[ilosc_przesylek]; // tablica w ktorej bedziemy trzymac przesylki dostepne do odwiedzenia dla mrowki
+           
             Random rand = new Random();
             //==========================================================================================================================================
-                int miasto_startowe = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie miasta startowego
-                int IDmiast = ilosc_przesylek; //TO NIE ID tylko IloscDostepnychmiast! :)
-                int obecne_miasto = miasto_startowe, kolejne_miasto = -1;
+            int przesylka_startowa = 0;// rand.Next(0, ilosc_przesylek - 1); //losowanie przesylki startowej
+                int IDprzesylek = ilosc_przesylek; //TO NIE ID 
+                int obecne_miasto = przesylka_startowa, kolejna_przesylka = -1;
                 for (int i = 0; i < ilosc_przesylek; i++) //wstepna inicjalizacja dostepnych miast
                 {
-                    dostepne_miasta[i] = i;
+                    dostepne_przesylki[i] = i;
                 }
                 int tmp; // zmienna do ustalenia kolejnosci (w sensie zamieniamy przy jej pomocy wartosci w tablicy - zwykle swap)
-                tmp = dostepne_miasta[miasto_startowe];
-                dostepne_miasta[miasto_startowe] = IDmiast - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (pod wyrzuceniem, rozumiem przeniesienia na koniec tablicy, do indeksow, do ktorych sie nie bedziemy odwolywac)
-                dostepne_miasta[IDmiast - 1] = tmp;
-                IDmiast--; // jedno miasto pooszloooo (krok wyzej)
+                tmp = dostepne_przesylki[przesylka_startowa];
+                dostepne_przesylki[przesylka_startowa] = IDprzesylek - 1; // wyrzucenie miasta, do ktorego i tak wrocimy z listy (pod wyrzuceniem, rozumiem przeniesienia na koniec tablicy, do indeksow, do ktorych sie nie bedziemy odwolywac)
+                dostepne_przesylki[IDprzesylek - 1] = tmp;
+                IDprzesylek--; // jedno miasto pooszloooo (krok wyzej)
 
                 double dlugosc_trasy = 0; //dlugosc trasy wyliczona dla tej mrowki
                 //...........................................................................................................................................
@@ -568,58 +689,57 @@ namespace Marszr
                 {
                     double suma_we_wzorze = 0; //nazwa mowi za siebie
                     int wybrana_droga_prd = 0, suma_prawdopodobienstwa = 0; //wybrana wartosc prawdopodobienstwa
-                    double[] prawdopodobienstwo = new double[IDmiast]; //tablica z prawdopodobienstwami wyboru kolejnego miasta
-                    lock (feromonO)
+                    double[] prawdopodobienstwo = new double[IDprzesylek]; //tablica z prawdopodobienstwami wyboru kolejnej przesylki
+                    
+                   // lock (feromonO)
                     {
-                        for (int i = 0; i < IDmiast; i++) //obliczenie jednej ze zmiennych potrzebnej do wybrania kolejnego miasta
+                        for (int i = 0; i < IDprzesylek; i++) //obliczenie jednej ze zmiennych potrzebnej do wybrania kolejnej przesylki
                         {
 
-                                suma_we_wzorze += (Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * (1.0 / Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta)));
+                                suma_we_wzorze += (Math.Pow(feromonP[obecne_miasto, dostepne_przesylki[i]], alfa) * (1.0 / Math.Pow(odleglosc[obecne_miasto, dostepne_przesylki[i]], beta)));
 
                         }
-                    }
-                    
-                   lock (feromonO)
-                    {
-                        for (int i = 0; i < IDmiast; i++) //liczenie prawdopodobienstwa wyboru dla kazdego z miast (taki ladny wzor)
+
+                        for (int i = 0; i < IDprzesylek; i++) //liczenie prawdopodobienstwa wyboru dla kazdej z przesylek (taki ladny wzor)
                         {
 
-                                prawdopodobienstwo[i] = ((Math.Pow(feromonP[obecne_miasto, dostepne_miasta[i]], alfa) * ((double)1 / (double)Math.Pow(odleglosc[obecne_miasto, dostepne_miasta[i]], beta))) / (double)(suma_we_wzorze)) * wartosc_pewna;
+                                prawdopodobienstwo[i] = ((Math.Pow(feromonP[obecne_miasto, dostepne_przesylki[i]], alfa) * ((double)1 / (double)Math.Pow(odleglosc[obecne_miasto, dostepne_przesylki[i]], beta))) / (double)(suma_we_wzorze)) * wartosc_pewna;
                                 suma_prawdopodobienstwa += (int)prawdopodobienstwo[i];
                         }
                     }
+                    
                     wybrana_droga_prd = rand.Next(0, suma_prawdopodobienstwa - 1); // wybieramy liczbe z naszego przedzialu wartosci	
 
                     suma_prawdopodobienstwa = 0; //wykorzystamy juz istniejaca zmienna
-                    for (int i = 0; i < IDmiast; i++)
+                    for (int i = 0; i < IDprzesylek; i++)
                     {
                         suma_prawdopodobienstwa += (int)prawdopodobienstwo[i]; //dodajemy i czekamy, az przekroczymy
                         if (suma_prawdopodobienstwa >= wybrana_droga_prd) //jezeli doszlismy do poszukiwnego prawdopodobienstwa
                         {
-                            kolejne_miasto = dostepne_miasta[i];
-                            tmp = dostepne_miasta[i];
-                            dostepne_miasta[i] = dostepne_miasta[IDmiast - 1]; //zmniejszenie ilosc miast
-                            dostepne_miasta[IDmiast - 1] = tmp;
+                            kolejna_przesylka = dostepne_przesylki[i];
+                            tmp = dostepne_przesylki[i];
+                            dostepne_przesylki[i] = dostepne_przesylki[IDprzesylek - 1]; //zmniejszenie ilosc przesylek
+                            dostepne_przesylki[IDprzesylek - 1] = tmp;
                             break;
                         }
                     }
 
-                    if (kolejne_miasto == -1)
+                    if (kolejna_przesylka == -1)
                     {
-                        System.Console.Out.WriteLine("Nie wybrano kolejnego miasta!!");
+                        System.Console.Out.WriteLine("Wiadomo co");
                         System.Console.In.Read();
                     }
                     else
                     {
-                        dlugosc_trasy += odleglosc[obecne_miasto, kolejne_miasto];
+                        dlugosc_trasy += odleglosc[obecne_miasto, kolejna_przesylka];
                     }
-                    obecne_miasto = kolejne_miasto;
+                    obecne_miasto = kolejna_przesylka;
 
-                    IDmiast--;
-                    kolejne_miasto = -1;
+                    IDprzesylek--;
+                    kolejna_przesylka = -1;
                 }
 
-                dlugosc_trasy += odleglosc[dostepne_miasta[0], miasto_startowe]; // i dodanie dlugosci drogi powrotnej do punktu
+                dlugosc_trasy += odleglosc[dostepne_przesylki[0], przesylka_startowa]; // i dodanie dlugosci drogi powrotnej do punktu
 
                 lock(rozwiazanieO)
                 {
@@ -627,48 +747,36 @@ namespace Marszr
                     {
                         rozwiazanieP = dlugosc_trasy;
 
-                        lock (najlepsza_trasaO)
-                        {
                             for (int i = ilosc_przesylek - 1; i >= 0; i--)
                             {
-                                najlepsza_trasaP[i] = dostepne_miasta[i];
+                                najlepsza_trasaP[i] = dostepne_przesylki[i];
                             }
-                        }
                     }
                 }
                 //...........................................................................................................................................
                 float dodatek_feromonu = (int)((1.0 / dlugosc_trasy) * wartosc_odniesienia_feromonu * mnoznik_feromonu); //okreslamy ile feromonu dodajemy
-
-                for (int i = ilosc_przesylek - 1; i > 0; i--) // dodanie feromonu do tablicy
-                {
-                    feromon_delta[dostepne_miasta[i], dostepne_miasta[i - 1]] += dodatek_feromonu;
-                }
-                feromon_delta[dostepne_miasta[0], miasto_startowe] += dodatek_feromonu;
-
+               
                 lock (najlepsza_trasaO)
                 {
+                    for (int i = ilosc_przesylek - 1; i > 0; i--) // dodanie feromonu do tablicy
+                    {
+                        feromonDeltaP[dostepne_przesylki[i], dostepne_przesylki[i - 1]] += dodatek_feromonu;
+                    }
+                    feromonDeltaP[dostepne_przesylki[0], przesylka_startowa] += dodatek_feromonu;
+
+                
                     for (int i = ilosc_przesylek - 1; i > 0; i--) //wyroznienie dodatkowo najlepszej trasy
                     {
-                        feromon_delta[najlepsza_trasaP[i], najlepsza_trasaP[i - 1]] += dodatek_feromonu;
+                        feromonDeltaP[najlepsza_trasaP[i], najlepsza_trasaP[i - 1]] += dodatek_feromonu;
                     }
-                    feromon_delta[najlepsza_trasaP[0], najlepsza_trasaP[ilosc_przesylek - 1]] += dodatek_feromonu;
+                    feromonDeltaP[najlepsza_trasaP[0], najlepsza_trasaP[ilosc_przesylek - 1]] += dodatek_feromonu;
                 }
             
             //==========================================================================================================================================
-            lock(feromonO)
-            {
-                for (int i = 0; i < ilosc_przesylek; i++)  //parowanie feromonu i dodanie nowego od mrowek
-                {
-                    for (int j = 0; j < ilosc_przesylek; j++)
-                    {
-                        feromonP[i, j] *= (1 - wsp_parowania); //szybkosc parowania
-                        feromonP[i, j] += feromon_delta[i, j];
-                    }
-                }
-            }
+
         }
 
-        public List<int> branch(int [] przesylka)
+        public List<int> branch(int [] przesylka, double granica)
         {
             int ilosc_przesylek = przesylka.Length;
             this.cykl = new int[ilosc_przesylek];
@@ -739,37 +847,54 @@ namespace Marszr
                 }
             }
 
-            bool udalo_sie;
-            udalo_sie = little(tablica, droga, ilosc_przesylek, 0, ilosc_przesylek);
+            int udalo_sie;
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            udalo_sie = little(tablica, droga, ilosc_przesylek, 0, ilosc_przesylek, sw, granica);
+            sw.Stop();
             
-            int dalej = 0;
-            
-            List<int> lista = new List<int>();
-
-            lista.Add(0);
-
-            for (int i = 0; i < ilosc_przesylek - 1; i++)
+            if (udalo_sie >= 0)
             {
+                int dalej = 0;
 
-                lista.Add(cykl[dalej]);
-                dalej = cykl[dalej];
+                List<int> lista = new List<int>();
 
+                lista.Add(0);
+
+                for (int i = 0; i < ilosc_przesylek - 1; i++)
+                {
+
+                    lista.Add(cykl[dalej]);
+                    dalej = cykl[dalej];
+
+                }
+                return lista;
             }
-            return lista;
+            else
+            {
+                return null;
+            }
         }
 
         //...........................................................................................................................................................................................
 
         public double obliczOdleglosc(List <int> trasa) //odleglosc dla zadanej trasy
         {
-            double suma = 0;
-            for(int i = 0 ; i < trasa.Count - 1 ; i++)
+            if (trasa != null)
             {
-                suma += this.odleglosc[trasa[i], trasa[i + 1]];
-            }
-            suma += this.odleglosc[trasa[trasa.Count - 1], trasa[0]];
+                double suma = 0;
+                for (int i = 0; i < trasa.Count - 1; i++)
+                {
+                    suma += this.odleglosc[trasa[i], trasa[i + 1]];
+                }
+                suma += this.odleglosc[trasa[trasa.Count - 1], trasa[0]];
 
-            return suma;
+                return suma;
+            }
+            else
+            {
+                return -1;
+            }
         }
 
         public double obliczWage(List<int> przesylka) // suma wag dla zadanych przesylek
@@ -810,300 +935,314 @@ namespace Marszr
             return lista;
         }
 
-        public bool little(double [,] tab, int [] droga, int n, double dolna, int l_przesylek) //n to liczba rozpatrywanych miast
+        public int little(double[,] tab, int[] droga, int n, double dolna, int l_przesylek, Stopwatch sw, double granica) //n to liczba rozpatrywanych miast
         {
 
-		        if (n==2) //warunek zakonczenia rekurencji
-		        {
-				        droga[(int)(tab[1,0])-1] = (int)tab[0,2]-1; //pierwsza mozliwosc zamkniecia
-				        droga[(int)tab[2,0]-1] = (int)tab[0,1]-1;
+           if (((Double)sw.ElapsedMilliseconds / 1000) < granica) //jezeli nie przekroczono czasu w sekundach
+            {
+                if (n == 2) //warunek zakonczenia rekurencji
+                {
+                    droga[(int)(tab[1, 0]) - 1] = (int)tab[0, 2] - 1; //pierwsza mozliwosc zamkniecia
+                    droga[(int)tab[2, 0] - 1] = (int)tab[0, 1] - 1;
 
-				        int tmp1 = droga[0], tmp2;
-				
-				        for(int i = 0 ; i < l_przesylek -1; i++)
+                    int tmp1 = droga[0], tmp2;
+
+                    for (int i = 0; i < l_przesylek - 1; i++)
+                    {
+                        if (tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - znaczy nie bardzo jest to interesujacy nas cykl po wszystkich miastach
                         {
-					        if(tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - znaczy nie bardzo jest to interesujacy nas cykl po wszystkich miastach
-					        {                             
-						        tmp1 = -1;
-						        break;	
-					        }
+                            tmp1 = -1;
+                            break;
+                        }
 
-					        tmp2 = droga[tmp1];
-					        tmp1 = tmp2;
-					
-				        }
+                        tmp2 = droga[tmp1];
+                        tmp1 = tmp2;
 
-				        if(tmp1 == 0) //jezeli jest cykl
-				        {
-					       // if (tab[1,2] != double.MaxValue && tab[2,1] != double.MaxValue) //gdyby jednak cos takiego sie przytrafilo
-						        if((dolna + tab[1,2] + tab[2,1]) < gorna)
-						        {
-						        gorna = dolna + tab[1,2] + tab[2,1];
-						        for (int i=0; i < l_przesylek; i++) //kopia najlepszej trasy do tej pory do obiektu
-						        {
-							        cykl[i] = droga[i];
-						        }
-						        }
-				        }
+                    }
 
-				        droga[(int)(tab[1,0])-1] = (int)(tab[0,1])-1; //i druga mozliwosc zamkniecia
-				        droga[(int)(tab[2,0])-1] = (int)(tab[0,2])-1;
-				        tmp1 = droga[0];
-				        for(int i = 0 ; i < l_przesylek -1; i++)
-				        {
-					        if(tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - znaczy nie bardzo jest to interesujacy nas cykl po wszystkich miastach
-					        {
-						        tmp1 = -1;
-						        break;	
-					        }
+                    if (tmp1 == 0) //jezeli jest cykl
+                    {
+                        // if (tab[1,2] != double.MaxValue && tab[2,1] != double.MaxValue) //gdyby jednak cos takiego sie przytrafilo
+                        if ((dolna + tab[1, 2] + tab[2, 1]) < gorna)
+                        {
+                            gorna = dolna + tab[1, 2] + tab[2, 1];
+                            for (int i = 0; i < l_przesylek; i++) //kopia najlepszej trasy do tej pory do obiektu
+                            {
+                                cykl[i] = droga[i];
+                            }
+                        }
+                    }
 
-					        tmp2 = droga[tmp1];
-					        tmp1 = tmp2;
-					
-				        }
-				        if(tmp1 == 0) //jezeli jest cykl
-				        {
-					       // if (tab[1,2] != double.MaxValue && tab[2,1] != double.MaxValue) //gdyby jednak cos takiego sie przytrafilo                          
-						        if((dolna + tab[1,1] + tab[2,2]) < gorna)
-						        {
-						        gorna = dolna + tab[1,1] + tab[2,2];
-                                
-						        for (int i=0; i < l_przesylek; i++) //kopia najlepszej trasy do tej pory do obiektu
-						        {
-                                    
-							        this.cykl[i] = droga[i];
-						        }
-						        }
-				        }
-				        return true;
-			        } 
-		        else // dla macierzy wiekszej niz 2 standardowy podzial
-			        {
-				        // redukcja macierzy kosztow
-				        double [] minimalne_w = new double[n];
-                        double [] minimalne_k = new double[n]; //tablice trzymajace znalezione minimalne wartosci wiersz_podzial odpowiednich wierszach i kolumnach
-				        double min;
-				        for (int i = 1; i <= n; i++) // i teraz znalezienie minimum dla kazdego wiersza - wiersz_podzial tym punkcie pamietam, ze moja macierz/tablice z odleglosciami poeiwkszylem o 1 wiersz_podzial kazdym wymiarze (wiersz_podzial celu pamietania indeksow danego wiersza, kolumny)! wiec wiersz_podzial wiekszosci petle beda zaczynac sie od 1 i konczyc na <=
-				        { 
-					        min = double.MaxValue; //dla kazdego wiersza od nowa szukanie minimum
+                    droga[(int)(tab[1, 0]) - 1] = (int)(tab[0, 1]) - 1; //i druga mozliwosc zamkniecia
+                    droga[(int)(tab[2, 0]) - 1] = (int)(tab[0, 2]) - 1;
+                    tmp1 = droga[0];
+                    for (int i = 0; i < l_przesylek - 1; i++)
+                    {
+                        if (tmp1 == 0) //jezeli cykl konczy sie wczesniej niz powinien - znaczy nie bardzo jest to interesujacy nas cykl po wszystkich miastach
+                        {
+                            tmp1 = -1;
+                            break;
+                        }
 
-					        for (int j = 1; j <= n; j++) // kolejne wartosci wiersz_podzial wierszu
-					        {
-						        if (tab[i,j] < min) // jezeli znaleziono najmniejsza do tej pory
-						        {
-							        min = tab[i,j];
+                        tmp2 = droga[tmp1];
+                        tmp1 = tmp2;
 
-							        if(min == 0) // mniejszej nie znajdziemy
-							        {
-								        break;
-							        }
-						        }
-					        }
-					        if(min < double.MaxValue)
-					        {
-					        minimalne_w[i-1] = min; // przechowanie najmniejszej dla danego wiersza (uwaga, wiersze numerowane od 0!)
-					        }
-					        else
-					        {
-						        minimalne_w[i-1] = 0;
-					        }
-				        }
+                    }
+                    if (tmp1 == 0) //jezeli jest cykl
+                    {
+                        // if (tab[1,2] != double.MaxValue && tab[2,1] != double.MaxValue) //gdyby jednak cos takiego sie przytrafilo                          
+                        if ((dolna + tab[1, 1] + tab[2, 2]) < gorna)
+                        {
+                            gorna = dolna + tab[1, 1] + tab[2, 2];
 
-				        for (int i = 1; i <= n; i++) //odjecie znalezionych minimum od kazdej wartosci wiersz_podzial zadanym wierszu
-				        {
-					        if(minimalne_w[i-1] > 0) // jezeli wiersz_podzial ogole odejmowanie ma sens - bedzie co odejmowac, wieksze od zera
-					        {
-					        for (int j = 1; j <= n; j++)
-					        {
-						        if(tab[i,j] != double.MaxValue)
-							        tab[i,j] -= minimalne_w[i-1];
-					        }
-					        }
-				        }
+                            for (int i = 0; i < l_przesylek; i++) //kopia najlepszej trasy do tej pory do obiektu
+                            {
+
+                                this.cykl[i] = droga[i];
+                            }
+                        }
+                    }
+                    return 1;
+                }
+                else // dla macierzy wiekszej niz 2 standardowy podzial
+                {
+                    // redukcja macierzy kosztow
+                    double[] minimalne_w = new double[n];
+                    double[] minimalne_k = new double[n]; //tablice trzymajace znalezione minimalne wartosci wiersz_podzial odpowiednich wierszach i kolumnach
+                    double min;
+                    for (int i = 1; i <= n; i++) // i teraz znalezienie minimum dla kazdego wiersza - wiersz_podzial tym punkcie pamietam, ze moja macierz/tablice z odleglosciami poeiwkszylem o 1 wiersz_podzial kazdym wymiarze (wiersz_podzial celu pamietania indeksow danego wiersza, kolumny)! wiec wiersz_podzial wiekszosci petle beda zaczynac sie od 1 i konczyc na <=
+                    {
+                        min = double.MaxValue; //dla kazdego wiersza od nowa szukanie minimum
+
+                        for (int j = 1; j <= n; j++) // kolejne wartosci wiersz_podzial wierszu
+                        {
+                            if (tab[i, j] < min) // jezeli znaleziono najmniejsza do tej pory
+                            {
+                                min = tab[i, j];
+
+                                if (min == 0) // mniejszej nie znajdziemy
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        if (min < double.MaxValue)
+                        {
+                            minimalne_w[i - 1] = min; // przechowanie najmniejszej dla danego wiersza (uwaga, wiersze numerowane od 0!)
+                        }
+                        else
+                        {
+                            minimalne_w[i - 1] = 0;
+                        }
+                    }
+
+                    for (int i = 1; i <= n; i++) //odjecie znalezionych minimum od kazdej wartosci wiersz_podzial zadanym wierszu
+                    {
+                        if (minimalne_w[i - 1] > 0) // jezeli wiersz_podzial ogole odejmowanie ma sens - bedzie co odejmowac, wieksze od zera
+                        {
+                            for (int j = 1; j <= n; j++)
+                            {
+                                if (tab[i, j] != double.MaxValue)
+                                    tab[i, j] -= minimalne_w[i - 1];
+                            }
+                        }
+                    }
 
 
-				        for (int i = 1; i <=n ; i++) //analogiczne dzialania dla kazdej kolumny
-				        { 
-					        min = double.MaxValue;
+                    for (int i = 1; i <= n; i++) //analogiczne dzialania dla kazdej kolumny
+                    {
+                        min = double.MaxValue;
 
-					        for (int j = 1; j <= n; j++)
-					        {
-						        if (tab[j,i] < min)
-						        {
-							        min = tab[j,i];
+                        for (int j = 1; j <= n; j++)
+                        {
+                            if (tab[j, i] < min)
+                            {
+                                min = tab[j, i];
 
-							        if(min == 0) // mniejszej nie znajdziemy
-							        {
-								        break;
-							        }
-						        }
-					        }
+                                if (min == 0) // mniejszej nie znajdziemy
+                                {
+                                    break;
+                                }
+                            }
+                        }
 
-					        if(min < double.MaxValue)
-					        {
-					        minimalne_k[i-1] = min; // przechowanie najmniejszej dla danego wiersza (uwaga, wiersze numerowane od 0!)
-					        }
-					        else
-					        {
-						        minimalne_k[i-1] = 0;
-					        }
-				        }
+                        if (min < double.MaxValue)
+                        {
+                            minimalne_k[i - 1] = min; // przechowanie najmniejszej dla danego wiersza (uwaga, wiersze numerowane od 0!)
+                        }
+                        else
+                        {
+                            minimalne_k[i - 1] = 0;
+                        }
+                    }
 
-				        for (int i = 1; i <=n ; i++) //odejmowanie wiersz_podzial kolumnach
-				        {
-					        if(minimalne_k[i-1] > 0 ) // jezeli wiersz_podzial ogole odejmowanie ma sens
-					        {
-					        for (int j = 1; j <= n; j++)
-					        {
-						        if(tab[j,i] != double.MaxValue)
-							        tab[j,i] -= minimalne_k[i-1];
-					        }
-					        }
-				        }   
+                    for (int i = 1; i <= n; i++) //odejmowanie wiersz_podzial kolumnach
+                    {
+                        if (minimalne_k[i - 1] > 0) // jezeli wiersz_podzial ogole odejmowanie ma sens
+                        {
+                            for (int j = 1; j <= n; j++)
+                            {
+                                if (tab[j, i] != double.MaxValue)
+                                    tab[j, i] -= minimalne_k[i - 1];
+                            }
+                        }
+                    }
 
-				        double dolna_przyrost = 0; //o ile zwiekszylo sie aktualnie dolne ograniczenie
-				        for (int i = 0; i < n; i++)
-				        {
-					        dolna_przyrost += (minimalne_w[i] + minimalne_k[i]); // zsumowanie wszystkich wartosci
-				        }
-                        
-				        double nowa_dolna = dolna + dolna_przyrost; // nowa dolna granica dla zadanej macierzy
-                        
-			        //  Wybor luku wg ktorego nastapi podzial drzewa (taki, ktory spowoduje najwieksy wzrost dolnego ograniczenia dla rozwiazan, ktore tego luku na pewno nie posiadaja)
+                    double dolna_przyrost = 0; //o ile zwiekszylo sie aktualnie dolne ograniczenie
+                    for (int i = 0; i < n; i++)
+                    {
+                        dolna_przyrost += (minimalne_w[i] + minimalne_k[i]); // zsumowanie wszystkich wartosci
+                    }
 
-				        int wiersz_podzial=0, kolumna_podzial=0;
-                        double minimum_w_kolumnie, minimum_w_wierszu, max_tmp, max = -1.0, minimum_w_wierszuxD=0,  minimum_w_kolumniexD=0;
-				        for (int i = 1; i <= n; i++) //przeszukujemy cala macierz
-				        {
-					        for (int j = 1; j <= n; j++)
-					        {
-						
-						        if (tab[i, j] == 0) // az natrafimy na krawedz/sciezke z wartoscia zero
-						        {	
-							        minimum_w_wierszu = double.MaxValue;
-							        for (int l = 1; l <= n; l++) //szukamy najmniejszej wartosci w wierszu
-							        {
-								        if ((l != j) && (tab[i,l] < minimum_w_wierszu))
-								        {
-									        minimum_w_wierszu = tab[i,l];
-								        }
-							        }
+                    double nowa_dolna = dolna + dolna_przyrost; // nowa dolna granica dla zadanej macierzy
 
-							        minimum_w_kolumnie = double.MaxValue;
-							        for (int m = 1; m <= n; m++) 
-							        {
-								        if ((m != i) && (tab[m,j] < minimum_w_kolumnie)) //szukamy najmniejszej wartosci w wierszu
-								        {
-									        minimum_w_kolumnie = tab[m,j];
-								        }
-								
-							        }
-							
-							        max_tmp = minimum_w_wierszu + minimum_w_kolumnie; //zeby nie dodawac dwa razy
+                    //  Wybor luku wg ktorego nastapi podzial drzewa (taki, ktory spowoduje najwieksy wzrost dolnego ograniczenia dla rozwiazan, ktore tego luku na pewno nie posiadaja)
 
-							        if (max < max_tmp) //jezli znalezlismy najwieksza sume minimow
-							        { 
-								        max = max_tmp; //zapamietanie wartosci
-								        wiersz_podzial = i; //zapamietanie pozycji wystapienia krawedzi
-								        kolumna_podzial = j;
-								        minimum_w_wierszuxD = minimum_w_wierszu; // zeby nie liczyc ponownie znalezionego juz minimum
-								        minimum_w_kolumniexD = minimum_w_kolumnie;
-							        }
-						        }
-					        }
-				        }
-				
-			        //  Podzial zbioru wg wybranej krawedzi
-			        //  Poddrzewo z wybrana krawedzia
-				        double [,]tab_z_krawedzia = new double [n, n]; //utworzenie nowej macierzy - wszystkie rozwiazania z wybrana krawedzia - dlaczego n, a nie n -1? bo nasza tablica ma jeszcze numery indeksow (w zasadzie oryginalna ma rozmiar n+1)
-				        
-				        int i_mniejsze = 0 ,j_mniejsze;
-				        for (int i = 0; i <= n; i++) //tym razem indeks od zera, gdyz chce przepisac rowniez zawartosc... indeksow
-				        { 
-					        if (i == wiersz_podzial)
-					        {
-						        i_mniejsze--; //jesli natrafiamy na wiersz, ktory chcemy pominac, indeks zatrzymuje sie w miejscu (poniewaz potem zostanie zwiekszony o 1)
-					        }
-					        else //a tu przepisujemy wiersz
-					        {
-						        j_mniejsze = 0;
-						        for (int j = 0; j <= n; j++) 
-						        {
-							        if (j == kolumna_podzial) // bez zadanej kolumny
-							        {
-								        j_mniejsze--;
-							        }
-							        else
-							        {
-								        tab_z_krawedzia[i_mniejsze, j_mniejsze] = tab[i, j];
-							        }
-							        j_mniejsze++;
-						        }
-					        }
-					        i_mniejsze++;
-				        }
+                    int wiersz_podzial = 0, kolumna_podzial = 0;
+                    double minimum_w_kolumnie, minimum_w_wierszu, max_tmp, max = -1.0, minimum_w_wierszuxD = 0, minimum_w_kolumniexD = 0;
+                    for (int i = 1; i <= n; i++) //przeszukujemy cala macierz
+                    {
+                        for (int j = 1; j <= n; j++)
+                        {
 
-				        bool b1 = false, b2 = false; //zapobiezenie pojawieniu sie cykli, czyli sprawdzam, czy czasem go nie ma :D
-				        int kol=0, wie=0;
-				        for (int i = 1; i < n; i++) 
-				        { 
-					        if (tab_z_krawedzia[i, 0] == tab[0, kolumna_podzial]) 
-					        {
-						        b2 = true;
-						        wie = i;
-					        }
-					        if (tab_z_krawedzia[0, i] == tab[wiersz_podzial, 0]) 
-					        {
-						        b1 = true;
-						        kol = i;
-					        }
-					        if (b2 && b1) 
-					        {
-						        tab_z_krawedzia[wie, kol]=double.MaxValue; //jeżeli istnieje to blokujemy przejście
-						        break;
-					        }
-				        }
-                        
-				        if (nowa_dolna < gorna) //jezeli dolne oszacowanie mniejsze niz znane gorne - mamy szanse na jakies lepsze rozwiazanie.. | a jak nie jest, to dalej nawet nie ma co sie zaglebiac
-				        { 
-					        int [] nowa_droga = new int[l_przesylek]; //kopia dotychczasowej drogi
-					        for (int i = 0; i < l_przesylek; i++)
-					        {
-						        nowa_droga[i] = droga[i]; // tak - kopia
-					        }
-					        nowa_droga[(int)(tab[wiersz_podzial,0])-1] = (int)(tab[0,kolumna_podzial])-1; //dodajemy nową krawędź
+                            if (tab[i, j] == 0) // az natrafimy na krawedz/sciezke z wartoscia zero
+                            {
+                                minimum_w_wierszu = double.MaxValue;
+                                for (int l = 1; l <= n; l++) //szukamy najmniejszej wartosci w wierszu
+                                {
+                                    if ((l != j) && (tab[i, l] < minimum_w_wierszu))
+                                    {
+                                        minimum_w_wierszu = tab[i, l];
+                                    }
+                                }
 
-						        little(tab_z_krawedzia, nowa_droga, n-1, nowa_dolna, l_przesylek); //wchodzimy glebiej w dany przypadek
+                                minimum_w_kolumnie = double.MaxValue;
+                                for (int m = 1; m <= n; m++)
+                                {
+                                    if ((m != i) && (tab[m, j] < minimum_w_kolumnie)) //szukamy najmniejszej wartosci w wierszu
+                                    {
+                                        minimum_w_kolumnie = tab[m, j];
+                                    }
 
-				        }
+                                }
 
-				     
+                                max_tmp = minimum_w_wierszu + minimum_w_kolumnie; //zeby nie dodawac dwa razy
 
-				        //podrzewo bez danej krawedzi
+                                if (max < max_tmp) //jezli znalezlismy najwieksza sume minimow
+                                {
+                                    max = max_tmp; //zapamietanie wartosci
+                                    wiersz_podzial = i; //zapamietanie pozycji wystapienia krawedzi
+                                    kolumna_podzial = j;
+                                    minimum_w_wierszuxD = minimum_w_wierszu; // zeby nie liczyc ponownie znalezionego juz minimum
+                                    minimum_w_kolumniexD = minimum_w_kolumnie;
+                                }
+                            }
+                        }
+                    }
 
-					        tab[wiersz_podzial,kolumna_podzial] = double.MaxValue; //nieskończoność wiersz_podzial miejsce wcześniej wybranego zera (czyli teraz bez tej krawędzi)
-				
-					        for (int i = 1; i <= n ; i++) // ponowne ograniczenie
-					        { 
-						        if (tab[wiersz_podzial,i] < double.MaxValue)
-						        {
-							        tab[wiersz_podzial,i] -= minimum_w_wierszuxD;
-						        }
-						        if (tab[i,kolumna_podzial] < double.MaxValue)
-						        {
-							        tab[i,kolumna_podzial] -= minimum_w_kolumniexD;
-						        }
-					        }
-					
-						         nowa_dolna += (minimum_w_wierszuxD+minimum_w_kolumniexD); //nowa dolna granica
+                    //  Podzial zbioru wg wybranej krawedzi
+                    //  Poddrzewo z wybrana krawedzia
+                    double[,] tab_z_krawedzia = new double[n, n]; //utworzenie nowej macierzy - wszystkie rozwiazania z wybrana krawedzia - dlaczego n, a nie n -1? bo nasza tablica ma jeszcze numery indeksow (w zasadzie oryginalna ma rozmiar n+1)
 
-						         if (nowa_dolna < gorna) // jezeli ma sens dalej isc w te wariant to idziemy wglab
-							        {
-								        little(tab, droga, n, nowa_dolna, l_przesylek); 
-							        }
-                                 return false;
-			        }
-	        
+                    int i_mniejsze = 0, j_mniejsze;
+                    for (int i = 0; i <= n; i++) //tym razem indeks od zera, gdyz chce przepisac rowniez zawartosc... indeksow
+                    {
+                        if (i == wiersz_podzial)
+                        {
+                            i_mniejsze--; //jesli natrafiamy na wiersz, ktory chcemy pominac, indeks zatrzymuje sie w miejscu (poniewaz potem zostanie zwiekszony o 1)
+                        }
+                        else //a tu przepisujemy wiersz
+                        {
+                            j_mniejsze = 0;
+                            for (int j = 0; j <= n; j++)
+                            {
+                                if (j == kolumna_podzial) // bez zadanej kolumny
+                                {
+                                    j_mniejsze--;
+                                }
+                                else
+                                {
+                                    tab_z_krawedzia[i_mniejsze, j_mniejsze] = tab[i, j];
+                                }
+                                j_mniejsze++;
+                            }
+                        }
+                        i_mniejsze++;
+                    }
+
+                    bool b1 = false, b2 = false; //zapobiezenie pojawieniu sie cykli, czyli sprawdzam, czy czasem go nie ma :D
+                    int kol = 0, wie = 0;
+                    for (int i = 1; i < n; i++)
+                    {
+                        if (tab_z_krawedzia[i, 0] == tab[0, kolumna_podzial])
+                        {
+                            b2 = true;
+                            wie = i;
+                        }
+                        if (tab_z_krawedzia[0, i] == tab[wiersz_podzial, 0])
+                        {
+                            b1 = true;
+                            kol = i;
+                        }
+                        if (b2 && b1)
+                        {
+                            tab_z_krawedzia[wie, kol] = double.MaxValue; //jeżeli istnieje to blokujemy przejście
+                            break;
+                        }
+                    }
+                    int num;
+                    if (nowa_dolna < gorna) //jezeli dolne oszacowanie mniejsze niz znane gorne - mamy szanse na jakies lepsze rozwiazanie.. | a jak nie jest, to dalej nawet nie ma co sie zaglebiac
+                    {
+                        int[] nowa_droga = new int[l_przesylek]; //kopia dotychczasowej drogi
+                        for (int i = 0; i < l_przesylek; i++)
+                        {
+                            nowa_droga[i] = droga[i]; // tak - kopia
+                        }
+                        nowa_droga[(int)(tab[wiersz_podzial, 0]) - 1] = (int)(tab[0, kolumna_podzial]) - 1; //dodajemy nową krawędź
+
+                        num = little(tab_z_krawedzia, nowa_droga, n - 1, nowa_dolna, l_przesylek, sw, granica); //wchodzimy glebiej w dany przypadek
+
+                        if (num < 0)
+                        {
+                            return -1;
+                        }
+                    }
+
+
+
+                    //podrzewo bez danej krawedzi
+
+                    tab[wiersz_podzial, kolumna_podzial] = double.MaxValue; //nieskończoność wiersz_podzial miejsce wcześniej wybranego zera (czyli teraz bez tej krawędzi)
+
+                    for (int i = 1; i <= n; i++) // ponowne ograniczenie
+                    {
+                        if (tab[wiersz_podzial, i] < double.MaxValue)
+                        {
+                            tab[wiersz_podzial, i] -= minimum_w_wierszuxD;
+                        }
+                        if (tab[i, kolumna_podzial] < double.MaxValue)
+                        {
+                            tab[i, kolumna_podzial] -= minimum_w_kolumniexD;
+                        }
+                    }
+
+                    nowa_dolna += (minimum_w_wierszuxD + minimum_w_kolumniexD); //nowa dolna granica
+                    
+                    if (nowa_dolna < gorna) // jezeli ma sens dalej isc w te wariant to idziemy wglab
+                    {
+                        num = little(tab, droga, n, nowa_dolna, l_przesylek, sw, granica);
+                        if (num < 0)
+                        {
+                            return -1;
+                        }
+                    }
+                    return 0;
+                }
+            }
+            else
+            {
+                return -1;
+            }
         }
 
         public void generuj_permutacje(int[] permutacja, int ilosc_przesylek) //funkcja pomocnicza dla symulowanego wyzarzania
