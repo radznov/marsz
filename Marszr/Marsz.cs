@@ -167,12 +167,12 @@ namespace Marszr
                 }
                 trasy.Add(przesylki);
             }
-            else if (tryb == 1) // wybor kolejnych sciezek losowo
+            else if (tryb == 1) // wybor kolejnych sciezek losowo - szalenstwo
             {
-                   // Console.WriteLine(rand.Next(0,4));
-                    //Console.Read();
                     przesylki.Add(0);
+
                     int index = 0, wybor = 0;
+
                     List<int> przesylkiLos = new List<int>(); //pojedyncza trasa
                     for (int i = 0; i < this.przesylka.Count; i++)
                     {
@@ -204,7 +204,9 @@ namespace Marszr
                         {
                             odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), dane.wychlodzenie, dane.min));
                         }
+
                         waga += this.przesylka[wybor].getQ();
+
                         if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
                         {
                             przesylki.RemoveAt(index + 1);
@@ -226,8 +228,8 @@ namespace Marszr
             }
             else if (tryb == 2) // wybor kolejnych przesylek wzgledem odleglosci od magazynu
             {
-
                 przesylki.Add(0);
+
                 int index = 0, wybor = 0;
                 List<int> przesylkiSort = new List<int>(); //pojedyncza trasa
                 przesylkiSort.Add(0);
@@ -235,39 +237,32 @@ namespace Marszr
                 {
                     for (int j = 0; j < i; j++)
                     {
-                        
-                        double a = this.odleglosc[0, (przesylkiSort[j])];       
+                        Console.WriteLine((przesylkiSort[j]));
+                        double a = this.odleglosc[0, (przesylkiSort[j]) + 1];
                         double b = this.odleglosc[0, i];
                         if (a > b)
                         {
-                            //Console.WriteLine("Odleglosc " + b + "do " + (i));
                             przesylkiSort.Insert(j, i);
                             break;
                         }
-                    }
+                        else if (j == i - 1) 
+                        {
+                            przesylkiSort.Add(i);
+                        }
 
-                    //for (int j = 0; j < i; j++)
-                    //{                       
-                    //    Console.WriteLine("wartosc: " + przesylkiSort[j] + "  Pozycja = " + j + "  Odleglosc " + this.odleglosc[0, (przesylkiSort[j])]);
-                    //}
-                    //Thread.Sleep(1000);
+                    }
                     
                 }
-                //Console.Read();
-                for (int i = 0; i < this.przesylka.Count; i++)
-                {
-                    Console.WriteLine("wartosc: " + przesylkiSort[i] + "  Pozycja = " + i + "  Odleglosc " + this.odleglosc[0, (przesylkiSort[i])]);
 
-                }
-                //POWALONE
                 for (int i = 0; i < this.przesylka.Count; i++)
                 {
                     wybor = przesylkiSort[i];
 
                     przesylki.Add(wybor + 1);
+
                     if (algorytm == 0)
                     {
-                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray(), 10));
+                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray(), dane.granica));
                         if (odleglosc < 0)
                         {
                             return null;
@@ -275,18 +270,19 @@ namespace Marszr
                     }
                     else if (algorytm == 1)
                     {
-                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 10, false));
+                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek, dane.losowo));
                     }
                     else if (algorytm == 2)
                     {
-                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), 100, 10000.0, 1.0, 0.3F, 8));
+                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek));
                     }
                     else if (algorytm == 3)
                     {
-                        odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), 0.999, 0.01));
+                        odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), dane.wychlodzenie, dane.min));
                     }
 
                     waga += this.przesylka[wybor].getQ();
+
                     if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
                     {
                         przesylki.RemoveAt(index + 1);
@@ -307,6 +303,7 @@ namespace Marszr
             }
             else if (tryb == 3) // wybor kolejnych przesylek najblizszych aktualnie rozwazanej przesylce
             {
+
             }
 
             return trasy;

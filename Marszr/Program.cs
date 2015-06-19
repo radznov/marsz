@@ -24,6 +24,7 @@ public struct Dane
     public double wychlodzenie; //jaka bedzie kolejna temperatura w odniesieniu do aktualnej [0-1]
     public double min; //minimalna temperatura ukladu
 }
+
 namespace Marszr
 {
     class Program
@@ -50,9 +51,12 @@ namespace Marszr
                         dane.mnoznik_feromonu = 1.0;
                         dane.wsp_parowania = 0.3F;
                         dane.losowo = false;
+                        dane.min = 0.001;
+                        dane.wychlodzenie = 0.99;
+                        dane.granica = 10;
                         sw.Start();
 
-                        trasy = marsz.sre(0, 2, dane); // Tutaj podajemy jakim trybem i jakim algorytmem liczymy
+                        trasy = marsz.sre(2, 1, dane); // Tutaj podajemy jakim trybem i jakim algorytmem liczymy
 
                         if (trasy != null) // dla B&B jesli nie przekroczymy czasu pojdeynczej operacji
                         {                           
