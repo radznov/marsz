@@ -53,6 +53,7 @@ namespace Marszr
 
         public Marsz(String nazwaPliku) //konstruktor tworzy nam instancje - wczytuje parametry, na których możemy pracować
         {
+
             String[] linie = System.IO.File.ReadAllLines(nazwaPliku);
 
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
@@ -390,7 +391,7 @@ namespace Marszr
             return trasy;
         }
 
-        public List<int> mrowka(int [] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, float wsp_parowania, int ilosc_mrowek, Boolean losowo) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
+        public List<int> mrowka(int [] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, double wsp_parowania, int ilosc_mrowek, Boolean losowo) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
         {
             int ilosc_przesylek = przesylka.Length;
 
@@ -565,7 +566,7 @@ namespace Marszr
             return lista;
         }
 
-        public List<int> mrowkaP(int[] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, float wsp_parowania, int ilosc_mrowek) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
+        public List<int> mrowkaP(int[] przesylka, int ilosc_tur, double bazowy_feromon, double mnoznik_feromonu, double wsp_parowania, int ilosc_mrowek) //dla zadanej tablicy przesylek (z magazynem) oraz parametrow zwraca kolejnosc dostarczenia przesylek
         {
             int ilosc_przesylek = przesylka.Length;
 
@@ -752,7 +753,7 @@ namespace Marszr
             return lista;
         }
 
-        public void mrowczak(int ilosc_przesylek, double[,] odleglosc, float wsp_parowania, double mnoznik_feromonu,  double wartosc_odniesienia_feromonu, int nr)
+        public void mrowczak(int ilosc_przesylek, double[,] odleglosc, double wsp_parowania, double mnoznik_feromonu,  double wartosc_odniesienia_feromonu, int nr)
         {
             const float alfa = 1.0F, beta = 3.0F; // alfa/beta (okreslaja parametry wyboru kolejnej przesylki na trasie, "podobno" alfa najlepiej  = 1, beta <2,5>
             const int wartosc_pewna = 10000; // ogolnie 1 stanowi wartosc pewna, ze wzgledu na losowanie wartosci calkowitych - u nas ta jedynka bedzie 10 000 (mozliwa zmiana)
