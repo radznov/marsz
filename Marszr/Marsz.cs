@@ -237,7 +237,6 @@ namespace Marszr
                 {
                     for (int j = 0; j < i; j++)
                     {
-                        Console.WriteLine((przesylkiSort[j]));
                         double a = this.odleglosc[0, (przesylkiSort[j]) + 1];
                         double b = this.odleglosc[0, i];
                         if (a > b)
@@ -303,7 +302,89 @@ namespace Marszr
             }
             else if (tryb == 3) // wybor kolejnych przesylek najblizszych aktualnie rozwazanej przesylce
             {
+                przesylki.Add(0);
 
+                List<int> przesylkiWybor = new List<int>(); //pojedyncza trasa
+                for (int i = 0; i < this.przesylka.Count; i++)
+                {
+                    przesylkiWybor.Add(i);
+                }
+                double min_odl = double.MaxValue;
+                int index = 0, poprzedni = 0, wybor = 0 , tmp = 0;
+
+                for (int i = 0; i < this.przesylka.Count; i++)
+                {
+                    
+                    min_odl = double.MaxValue;
+                    wybor = 0;
+                    for (int j = 0; j < this.przesylka.Count - i; j++)
+                    {
+                        if (przesylkiWybor[j]+1 != poprzedni) // do i nedd this?
+                        {
+                            double a = this.odleglosc[poprzedni, przesylkiWybor[j] + 1];
+                            
+                            if (a < min_odl)
+                            {
+                                min_odl = a;
+                                wybor = przesylkiWybor[j];
+                                tmp = j;
+                            }
+                            else if (a == min_odl)
+                            {
+                                if (przesylka[przesylkiWybor[j]].getQ() < przesylka[przesylkiWybor[tmp]].getQ())
+                                {
+                                    wybor = przesylkiWybor[j];
+                                }
+                            }
+                        }
+                    }
+
+                    przesylki.Add(wybor + 1);
+
+                    if (algorytm == 0) //wybor algorytmu do obliczen - B&B
+                    {
+                        odleglosc = obliczOdleglosc(branch(przesylki.ToArray(), dane.granica));
+
+                        if (odleglosc < 0) //przekroczenie czasu wykonania
+                        {
+                            return null;
+                        }
+                    }
+                    else if (algorytm == 1) // alg. mrowkowy
+                    {
+                        odleglosc = obliczOdleglosc(mrowka(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek, dane.losowo));
+                    }
+                    else if (algorytm == 2) //alg mrowkowy rownolegly
+                    {
+                        odleglosc = obliczOdleglosc(mrowkaP(przesylki.ToArray(), dane.ilosc_tur, dane.bazowy_feromon, dane.mnoznik_feromonu, dane.wsp_parowania, dane.ilosc_mrowek));
+                    }
+                    else if (algorytm == 3) // alg symulowanego wyz.
+                    {
+                        odleglosc = obliczOdleglosc(symulowane(przesylki.ToArray(), dane.wychlodzenie, dane.min));
+                    }
+
+                    waga += this.przesylka[wybor].getQ();
+
+                    if (odleglosc > this.zasiegPojazdu || waga > this.pojemnoscPojazdu)
+                    {
+                        przesylki.RemoveAt(index + 1);
+                        trasy.Add(przesylki);
+                        przesylki = new List<int>();
+                        przesylki.Add(0);
+                        index = 0;
+                        i--;
+                        waga = 0;
+                    }
+                    else
+                    {
+                        index++;
+                        przesylkiWybor.Remove(wybor);
+                        poprzedni = wybor + 1;
+                    }
+                    
+                }
+                trasy.Add(przesylki);
+               
             }
 
             return trasy;

@@ -56,7 +56,7 @@ namespace Marszr
                         dane.granica = 10;
                         sw.Start();
 
-                        trasy = marsz.sre(2, 1, dane); // Tutaj podajemy jakim trybem i jakim algorytmem liczymy
+                        trasy = marsz.sre(3, 1, dane); // Tutaj podajemy jakim trybem i jakim algorytmem liczymy
 
                         if (trasy != null) // dla B&B jesli nie przekroczymy czasu pojdeynczej operacji
                         {                           
