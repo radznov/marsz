@@ -118,13 +118,18 @@ namespace Marszr
                     {
                         if (j == 3) //symulowane //.....................................................................................................
                         {
+                            Console.WriteLine("");   
+                            plik.WriteLine("");
                             plik.WriteLine("Tryb" + ";" + "Algorytm" + ";" + "Sumaryczna odleglosc" + ";" + "Ilosc tras" + ";" + "Suma Wag" + ";" + "Odleglosc optymalna" + ";" + "Czas" + ";" + "Wsp. ochl" + ";" + "Temp. min");
-                            double[] szybkosc_ochladzania = { 0.9, 0.99, 0.999, 0.9999 };
-                            double[] temp_minimalne = { 0.001, 0.01, 0.1};
-                            foreach (double a in szybkosc_ochladzania)
+                            double[] szybkosc_ochladzania = { 0.9, 0.99, 0.999, 0.9999, 0.99999 };
+                            double[] temp_minimalne = { 0.0001, 0.001, 0.01, 0.1};
+                            foreach (double a in temp_minimalne)
                             {
-                                foreach (double b in temp_minimalne)
+                                foreach (double b in szybkosc_ochladzania)
                                 {
+                                    dane.wychlodzenie = b;
+                                    dane.min = a;
+
                                     sw.Reset();
                                     double wagi = 0, odleglosci = 0;
                                     for (int l = 0; l < ILOSC_POWT; l++)
@@ -147,8 +152,7 @@ namespace Marszr
                                     wagi /= ILOSC_POWT;
                                     odleglosci /= ILOSC_POWT;
                                     
-                                    plik.Write(i + ";" + j + ";" + odleglosci + ";" + trasy.Count + ";" + wagi + ";" + marsz.getRozwiazanieOptymalne() + ";" + ((Double)sw.ElapsedMilliseconds / (1000 * ILOSC_POWT)) + ";" + a + ";" + b);
-                                    plik.WriteLine("");
+                                    plik.WriteLine(i + ";" + j + ";" + odleglosci + ";" + trasy.Count + ";" + wagi + ";" + marsz.getRozwiazanieOptymalne() + ";" + ((Double)sw.ElapsedMilliseconds / (1000 * ILOSC_POWT)) + ";" + b + ";" + a);
                                     plik.Flush();
                                 }
                             }
@@ -156,15 +160,122 @@ namespace Marszr
                         }
                         else if (j == 2) // mrowka P //.....................................................................................................
                         {
-                            plik.Write("Tryb" + ";" + "Algorytm" + ";" + "Sumaryczna odleglosc" + ";" + "Ilosc tras" + ";" + "Suma Wag" + ";" + "Odleglosc optymalna" + ";" + "Czas");
+                            Console.WriteLine("");   
+                            plik.WriteLine("");
+                            plik.WriteLine("Tryb" + ";" + "Algorytm" + ";" + "Sumaryczna odleglosc" + ";" + "Ilosc tras" + ";" + "Suma Wag" + ";" + "Odleglosc optymalna" + ";" + "Czas" + ";" + "Ilosc tur" + ";" + "Ilosc mrowek" );
+                           
+                            int[] ilosc_tur = { 25, 50, 75, 100 };
+                            int[] ilosc_mrowek = { 2, 4, 6, 8, 10 };
+
+                            foreach (int a in ilosc_tur)
+                            {
+                                foreach (int b in ilosc_mrowek)
+                                {
+                                    dane.ilosc_mrowek = b;
+                                    dane.ilosc_tur = a;
+                                    sw.Reset();
+                                    double wagi = 0, odleglosci = 0;
+                                    for (int l = 0; l < ILOSC_POWT; l++)
+                                    {
+
+                                        sw.Start();
+                                        trasy = marsz.sre(i, j, dane);
+                                        sw.Stop();
+                                        Console.Write(".");
+                                        if (trasy != null)
+                                        {
+
+                                            for (int k = 0; k < trasy.Count; k++) // dla kazdej trasy
+                                            {
+                                                wagi += marsz.obliczWage(trasy[k]);
+                                                odleglosci += marsz.obliczOdleglosc(trasy[k]);
+                                            }
+                                        }
+                                    }
+                                    wagi /= ILOSC_POWT;
+                                    odleglosci /= ILOSC_POWT;
+
+                                    plik.WriteLine(i + ";" + j + ";" + odleglosci + ";" + trasy.Count + ";" + wagi + ";" + marsz.getRozwiazanieOptymalne() + ";" + ((Double)sw.ElapsedMilliseconds / (1000 * ILOSC_POWT)) + ";" + a + ";" + b );
+                                    plik.Flush();
+                                }
+                            }
                         }
                         else if (j == 1) // mrowka //.....................................................................................................
                         {
+                            Console.WriteLine("");   
+                            plik.WriteLine("");
+                            plik.WriteLine("Tryb" + ";" + "Algorytm" + ";" + "Sumaryczna odleglosc" + ";" + "Ilosc tras" + ";" + "Suma Wag" + ";" + "Odleglosc optymalna" + ";" + "Czas" + ";" + "Ilosc tur" + ";" + "Ilosc mrowek" + ";" + "Losowosc");
+                            int[] ilosc_tur = { 25, 50, 75, 100 };
+                            int[] ilosc_mrowek = { 2, 4, 6, 8, 10 };
+                            Boolean[] losowosc = { true, false };
+                            foreach (Boolean c in losowosc)
+                            {
+                                foreach (int a in ilosc_tur)
+                                {
+                                    foreach (int b in ilosc_mrowek)
+                                    {
+                                        dane.losowo = c;
+                                        dane.ilosc_mrowek = b;
+                                        dane.ilosc_tur = a;
+                                        sw.Reset();
+                                        double wagi = 0, odleglosci = 0;
+                                        for (int l = 0; l < ILOSC_POWT; l++)
+                                        {
 
+                                            sw.Start();
+                                            trasy = marsz.sre(i, j, dane);
+                                            sw.Stop();
+                                            Console.Write(".");
+                                            if (trasy != null)
+                                            {
+
+                                                for (int k = 0; k < trasy.Count; k++) // dla kazdej trasy
+                                                {
+                                                    wagi += marsz.obliczWage(trasy[k]);
+                                                    odleglosci += marsz.obliczOdleglosc(trasy[k]);
+                                                }
+                                            }
+                                        }
+                                        wagi /= ILOSC_POWT;
+                                        odleglosci /= ILOSC_POWT;
+
+                                        plik.WriteLine(i + ";" + j + ";" + odleglosci + ";" + trasy.Count + ";" + wagi + ";" + marsz.getRozwiazanieOptymalne() + ";" + ((Double)sw.ElapsedMilliseconds / (1000 * ILOSC_POWT)) + ";" + a + ";" + b + ";" + c);
+                                        plik.Flush();
+                                    }
+                                }
+                            }
                         }
                         else if (j == 0) // B&B //.....................................................................................................
                         {
+                            plik.WriteLine("");
+                            plik.WriteLine("Tryb" + ";" + "Algorytm" + ";" + "Sumaryczna odleglosc" + ";" + "Ilosc tras" + ";" + "Suma Wag" + ";" + "Odleglosc optymalna" + ";" + "Czas");
 
+                            dane.granica = 3600;
+
+                            sw.Reset();
+                            double wagi = 0, odleglosci = 0;
+
+                            sw.Start();
+                            trasy = marsz.sre(i, j, dane);
+                            sw.Stop();
+                            Console.Write(".");
+                            if (trasy != null)
+                            {
+
+                                for (int k = 0; k < trasy.Count; k++) // dla kazdej trasy
+                                {
+                                    wagi += marsz.obliczWage(trasy[k]);
+                                    odleglosci += marsz.obliczOdleglosc(trasy[k]);
+                                }
+                                plik.WriteLine(i + ";" + j + ";" + odleglosci + ";" + trasy.Count + ";" + wagi + ";" + marsz.getRozwiazanieOptymalne() + ";" + ((Double)sw.ElapsedMilliseconds / (1000)));
+                                plik.Flush();
+                            }
+                            else
+                            {
+                                plik.WriteLine("za dlugo");
+                                plik.Flush();
+                            }
+                            Console.WriteLine(".");    
                         }
                     }
                 }
